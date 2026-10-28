@@ -1705,7 +1705,7 @@ def can_save_history() -> bool:
 
 
 def validated_upload(uploaded_file) -> Image.Image:
-    """Reject oversized, malformed and decompression-bomb images."""
+    """Safely decode photos even when iOS MIME/extension metadata differs."""
     if uploaded_file is None:
         raise ValueError("写真が選択されていません。")
     data = uploaded_file.getvalue()
@@ -1715,13 +1715,13 @@ def validated_upload(uploaded_file) -> Image.Image:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(io.BytesIO(data)) as source:
-                if source.format not in ("JPEG", "PNG", "HEIF", "HEIC"):
-                    raise ValueError("JPEG・PNG・HEIC形式の写真を選んでください。")
-                source.verify()
-            with Image.open(io.BytesIO(data)) as source:
+                # Safari may relabel/transcode iPhone photos on upload. The
+                # extension is filtered by Streamlit; trust a successful PIL
+                # raster decode rather than rejecting an unexpected format tag.
+                source.load()
                 return ImageOps.exif_transpose(source).convert("RGB")
-    except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
-        raise ValueError("写真を読み込めませんでした。別のJPEG・PNG・HEIC写真をお試しください。") from exc
+    except (OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise ValueError("写真を読み込めませんでした。別の写真を選ぶか、画像をJPEG形式で保存してお試しください。") from exc
 
 
 def get_user_dir() -> Path:
