@@ -4,3 +4,4 @@ Pillow>=10.4,<12
 pillow-heif==1.8.1
 matplotlib>=3.8,<4
 tensorflow==2.15.1
+supabase>=2.10,<3
