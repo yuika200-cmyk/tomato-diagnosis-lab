@@ -15,6 +15,7 @@ import streamlit.components.v1 as components
 from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from html import escape
+import history_cloud
 
 LOGGER = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parent
@@ -36,6 +37,24 @@ st.set_page_config(
     page_icon="🌱",
     layout="wide",
 )
+
+# =========================================================
+# オープンソース開発への参加案内（サイドバー）
+# =========================================================
+with st.sidebar:
+    st.subheader("🛠️ 開発・改善に参加する")
+    st.write("植物診断ラボは、利用者や開発者が改良に参加できるオープンソースプロジェクトです。")
+    st.link_button(
+        "GitHubでプログラムを見る",
+        "https://github.com/yuika200-cmyk/tomato-diagnosis-lab",
+        use_container_width=True,
+    )
+    st.link_button(
+        "開発への参加方法を見る",
+        "https://github.com/yuika200-cmyk/tomato-diagnosis-lab/blob/main/CONTRIBUTING.md",
+        use_container_width=True,
+    )
+    st.caption("ソースコードの改良提案は、GitHubのPull Requestから受け付けています。")
 
 
 # =========================================================
@@ -1661,6 +1680,15 @@ div[data-testid="stButton"] button {
     unsafe_allow_html=True,
 )
 
+with st.expander('🔐 会員登録・ログイン／保存した記録を見る', expanded=False):
+    auth_screen = getattr(history_cloud, 'auth_panel', None)
+    if callable(auth_screen):
+        auth_screen()
+    else:
+        st.error('ログイン用ファイルが古い可能性があります。テスト用GitHubの history_cloud.py を最新版に更新してください。')
+        st.caption('診断だけの利用は引き続き可能です。')
+
+
 # 共通ヘッダー
 st.markdown(
     """
@@ -1700,8 +1728,8 @@ def is_guest_user() -> bool:
 
 
 def can_save_history() -> bool:
-    """Server history must be explicitly enabled on a trusted deployment."""
-    return ENABLE_SERVER_HISTORY and not is_guest_user()
+    """Only authenticated accounts can access cloud history."""
+    return history_cloud.user() is not None
 
 
 def validated_upload(uploaded_file) -> Image.Image:
@@ -1762,31 +1790,14 @@ def append_csv(path: Path, columns: list[str], row: dict) -> None:
 
 
 def load_last_history() -> dict | None:
-    if not can_save_history():
-        return None
-
-    history_path = get_history_path()
-    if not history_path.exists():
-        return None
-
-    with history_path.open("r", encoding="utf-8-sig", newline="") as f:
-        rows = list(csv.DictReader(f))
-
-    if not rows:
-        return None
-    return rows[-1]
+    rows = load_history_rows()
+    return rows[-1] if rows else None
 
 
 def load_history_rows() -> list[dict]:
     if not can_save_history():
         return []
-
-    history_path = get_history_path()
-    if not history_path.exists():
-        return []
-
-    with history_path.open("r", encoding="utf-8-sig", newline="") as f:
-        return list(csv.DictReader(f))
+    return history_cloud.list_history()
 
 
 def format_history_date(created_at: str) -> str:
@@ -2266,7 +2277,7 @@ if st.session_state.page == "select_user":
     st.markdown('<div class="select-title">🍅 トマトの状態をAIで確認</div>', unsafe_allow_html=True)
     st.markdown('<div class="select-help">登録不要・無料。写真を1枚選んで診断できます。</div>', unsafe_allow_html=True)
     st.info("このアプリはトマト専用です。結果は参考情報であり、病気の確定診断ではありません。")
-    st.caption("写真・入力内容・診断結果はサーバーに記録しません。")
+    st.caption("診断だけなら保存しません。保存したい場合は画面上部の「会員登録・ログイン」から登録・ログインしてください。")
     planting_date_known = st.checkbox("植え付け日が分かる", value=st.session_state.planting_date_known)
     planting_date = date.today()
     if planting_date_known:
@@ -2303,12 +2314,9 @@ elif st.session_state.page == "home":
         st.session_state.force_scroll_top = False
 
     last_history = load_last_history()
-    last_date_text = "保存しない設定" if not can_save_history() else "まだありません"
+    last_date_text = "ログイン不要・保存なし" if not can_save_history() else "まだありません"
 
-    if not ENABLE_SERVER_HISTORY:
-        st.info("プライバシー保護のため、この公開向け設定では写真・診断履歴をサーバーに保存しません。")
-    else:
-        st.warning("この保存機能にはログイン認証がありません。同じ学年・組・植物を選んだ利用者の記録が共有されます。信頼できる閉じた環境でのみお使いください。")
+    st.info("診断のみは登録不要です。履歴保存はログインした方が任意で使えます。")
 
     if last_history is not None:
         last_date_text = last_history.get("created_at", "")
@@ -2561,12 +2569,13 @@ elif st.session_state.page == "diagnosis_upload":
                         record[f"{key}_model_score"] = ""
                 st.session_state.previous_record = load_last_history()
                 st.session_state.diagnosis_record = record
+                st.session_state.diagnosis_photo_bytes = None
                 if can_save_history():
-                    try:
-                        save_diagnosis_history(record, whole_file, None, None)
-                    except (OSError, ValueError):
-                        LOGGER.exception("Could not save diagnosis history")
-                        st.warning("診断はできましたが、履歴を保存できませんでした。")
+                    picture = validated_upload(whole_file)
+                    buffer = io.BytesIO()
+                    picture.save(buffer, format="JPEG", quality=83)
+                    st.session_state.diagnosis_photo_bytes = buffer.getvalue()
+                st.session_state.diagnosis_saved = False
                 st.session_state.force_scroll_top = True
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
@@ -2648,24 +2657,31 @@ elif st.session_state.page == "diagnosis_result":
 
     st.markdown('<div class="result-action-row">', unsafe_allow_html=True)
 
-    if not can_save_history():
-        if st.button("↻ もう一度診断する", use_container_width=True):
-            st.session_state.page = "diagnosis_upload"
-            st.rerun()
-        st.caption("プライバシー保護のため、診断結果・写真・入力内容は保存されません。画面を閉じる前に結果を確認してください。")
-    else:
-        col_again, col_history = st.columns(2, gap="large")
-
+    if can_save_history():
+        if st.session_state.get('diagnosis_saved', False):
+            st.success('この診断を成長記録に保存しました。')
+        elif st.button('💾 この診断を保存する', use_container_width=True):
+            try:
+                history_cloud.save(record, st.session_state.get('diagnosis_photo_bytes'))
+                st.session_state.diagnosis_saved = True
+                st.success('保存できました！')
+            except Exception:
+                LOGGER.exception('Cloud history save failed')
+                st.error('保存できませんでした。通信状況を確認して再度お試しください。')
+        col_again, col_history = st.columns(2)
         with col_again:
-            if st.button("↻ もう一度診断する", use_container_width=True):
-                st.session_state.page = "diagnosis_upload"
+            if st.button('↻ もう一度診断する', use_container_width=True):
+                st.session_state.page = 'diagnosis_upload'
                 st.rerun()
-
         with col_history:
-            if st.button("🌱 成長の記録", use_container_width=True):
-                st.session_state.force_scroll_top = True
-                st.session_state.page = "history_calendar"
+            if st.button('🌱 成長の記録', use_container_width=True):
+                st.session_state.page = 'history_calendar'
                 st.rerun()
+    else:
+        st.caption('今回の結果は保存されていません。保存するには画面上部の「会員登録・ログイン」でログインしてから診断してください。')
+        if st.button('↻ もう一度診断する', use_container_width=True):
+            st.session_state.page = 'diagnosis_upload'
+            st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -2682,16 +2698,19 @@ elif st.session_state.page == "history_calendar":
     rows = load_history_rows()
 
     if not rows:
-        st.warning("まだ成長のきろくがありません。")
+        st.warning("保存した成長のきろくはまだありません。")
         back_link("前のページに戻る", "home")
         st.stop()
 
     rows_sorted = list(reversed(rows))
 
+    if st.session_state.pop("history_delete_success", False):
+        st.success("記録を削除しました。")
+
     def first_image_path(row: dict) -> str:
         for key in ["whole_image_path", "leaf_image_path", "fruit_image_path"]:
             path_text = row.get(key, "")
-            if path_text and Path(path_text).exists():
+            if path_text and (path_text.startswith("https://") or Path(path_text).exists()):
                 return path_text
         return ""
 
@@ -2722,6 +2741,7 @@ elif st.session_state.page == "history_calendar":
 
                 if st.button("くわしく見る", key=f"detail_{idx}", use_container_width=True):
                     st.session_state.selected_history_index = idx
+                    st.session_state.selected_history_id = row.get("id")
                     st.session_state.force_scroll_top = True
                     st.session_state.page = "history_detail"
                     st.rerun()
@@ -2755,8 +2775,11 @@ elif st.session_state.page == "history_detail":
     rows = load_history_rows()
     rows_sorted = list(reversed(rows))
     selected_idx = st.session_state.get("selected_history_index", 0)
+    selected_id = st.session_state.get("selected_history_id")
+    if selected_id:
+        selected_idx = next((i for i, item in enumerate(rows_sorted) if item.get("id") == selected_id), len(rows_sorted))
 
-    if not rows_sorted or selected_idx >= len(rows_sorted):
+    if not rows_sorted or not isinstance(selected_idx, int) or selected_idx < 0 or selected_idx >= len(rows_sorted):
         st.warning("表示できる記録がありません。")
         st.session_state.force_scroll_top = True
         st.session_state.page = "history_calendar"
@@ -2771,7 +2794,7 @@ elif st.session_state.page == "history_detail":
         ("実のようす", row.get("fruit_image_path", "")),
     ]
     main_label, main_image_path = next(
-        ((label, p) for label, p in image_paths if p and Path(p).exists()),
+        ((label, p) for label, p in image_paths if p and (p.startswith("https://") or Path(p).exists())),
         (None, None),
     )
     st.markdown(f'<div class="detail-title">📅 {day_text} の記録</div>', unsafe_allow_html=True)
@@ -2821,6 +2844,35 @@ elif st.session_state.page == "history_detail":
             f'今日の作業：{escape(row.get("work_items", "") or "なし")}</div>',
             unsafe_allow_html=True,
         )
+
+    # 削除は詳細表示中の記録IDを指定し、必ず本人に確認してから実行する。
+    record_id_to_delete = row.get("id")
+    if can_save_history() and record_id_to_delete:
+        with st.expander("🗑️ この記録を削除する", expanded=False):
+            st.warning("この記録と保存写真を削除します。削除した記録は元に戻せません。")
+            with st.form(f"delete_history_form_{record_id_to_delete}"):
+                delete_confirmed = st.checkbox("この記録を削除することを確認しました")
+                delete_submitted = st.form_submit_button(
+                    "削除を確定する", use_container_width=True
+                )
+            if delete_submitted:
+                if not delete_confirmed:
+                    st.warning("確認欄にチェックを入れてください。")
+                elif not can_save_history():
+                    st.error("ログインが必要です。もう一度ログインしてください。")
+                else:
+                    try:
+                        history_cloud.delete_record(record_id_to_delete)
+                    except Exception:
+                        LOGGER.exception("Cloud history deletion failed")
+                        st.error("削除できませんでした。通信状況を確認してもう一度お試しください。")
+                    else:
+                        st.session_state.pop("selected_history_id", None)
+                        st.session_state.pop("selected_history_index", None)
+                        st.session_state.history_delete_success = True
+                        st.session_state.force_scroll_top = True
+                        st.session_state.page = "history_calendar"
+                        st.rerun()
 
     st.markdown('<div class="history-action-row">', unsafe_allow_html=True)
     col_back, col_again, col_home = st.columns(3, gap="large")
