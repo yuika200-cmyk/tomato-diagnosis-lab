@@ -1,11 +1,10 @@
+
 [server]
 maxUploadSize = 10
 enableXsrfProtection = true
 enableCORS = true
 headless = true
+useStarlette = false
 
 [browser]
 gatherUsageStats = false
-
-[server]
-useStarlette = false
