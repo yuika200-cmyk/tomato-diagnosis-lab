@@ -19,7 +19,26 @@ from supabase import ClientOptions, create_client
 
 BUCKET = "diagnosis-photos"
 TABLE = "diagnosis_records"
-TEST_URL = "https://tomato-diagnosis-test-gttdtnicndwbzp3b4kuy9x.streamlit.app/"
+# OAuth の戻り先はアクセス中のアプリに応じて選びます。
+# 不正なホストへのリダイレクトを防ぐため、利用可能なURLを限定します。
+ALLOWED_APP_URLS = {
+    "tomato-diagnosis-lab-9pty3t5dpdzszrt9dj78gi.streamlit.app":
+        "https://tomato-diagnosis-lab-9pty3t5dpdzszrt9dj78gi.streamlit.app/",
+    "tomato-diagnosis-test-gttdtnicndwbzp3b4kuy9x.streamlit.app":
+        "https://tomato-diagnosis-test-gttdtnicndwbzp3b4kuy9x.streamlit.app/",
+}
+
+
+def _app_url():
+    """Return a trusted callback URL for the current Streamlit app."""
+    from urllib.parse import urlsplit
+
+    current_url = st.context.url
+    hostname = urlsplit(current_url).hostname
+    if hostname not in ALLOWED_APP_URLS:
+        raise RuntimeError("このアプリのURLは認証用に登録されていません。")
+    return ALLOWED_APP_URLS[hostname]
+
 OAUTH_TTL_SECONDS = 600
 RECOVERY_TTL_SECONDS = 3600
 
@@ -59,7 +78,7 @@ def _make_google_link():
     pool = _pending_oauth()
     attempt = secrets.token_urlsafe(32)
     oauth_client = _new_client(pkce=True)
-    redirect_to = f"{TEST_URL}?oauth_attempt={attempt}"
+    redirect_to = f"{_app_url()}?oauth_attempt={attempt}"
     result = oauth_client.auth.sign_in_with_oauth(
         {"provider": "google", "options": {"redirect_to": redirect_to}}
     )
@@ -115,7 +134,7 @@ def _send_recovery_email(email):
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode("ascii")).digest()
     ).rstrip(b"=").decode("ascii")
-    redirect_to = f"{TEST_URL}?recovery_attempt={attempt}"
+    redirect_to = f"{_app_url()}?recovery_attempt={attempt}"
     api_url = st.secrets["SUPABASE_URL"].rstrip("/") + "/auth/v1/recover"
     api_key = st.secrets["SUPABASE_ANON_KEY"]
     with httpx.Client(timeout=20) as http:
