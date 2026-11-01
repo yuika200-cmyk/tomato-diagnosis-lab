@@ -16,6 +16,7 @@ from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from html import escape
 import history_cloud
+import model_registry
 
 LOGGER = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parent
@@ -55,6 +56,14 @@ with st.sidebar:
         use_container_width=True,
     )
     st.caption("ソースコードの改良提案は、GitHubのPull Requestから受け付けています。")
+    st.divider()
+    if st.button("🧠 AIモデルを登録・確認する", key="open_model_registry", use_container_width=True):
+        st.session_state.page = "model_registry"
+        st.rerun()
+    if st.session_state.get("page") == "model_registry":
+        if st.button("📷 写真診断に戻る", key="return_from_models", use_container_width=True):
+            st.session_state.page = "select_user"
+            st.rerun()
 
 
 # =========================================================
@@ -2896,3 +2905,9 @@ elif st.session_state.page == "history_detail":
             st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+# =========================================================
+# ⑦ AIモデル登録・一覧（既存診断機能とは独立）
+# =========================================================
+elif st.session_state.page == "model_registry":
+    model_registry.show()
