@@ -17,6 +17,7 @@ from pillow_heif import register_heif_opener
 from html import escape
 import history_cloud
 import model_registry
+import training_gallery
 
 LOGGER = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parent
@@ -57,6 +58,9 @@ with st.sidebar:
     )
     st.caption("ソースコードの改良提案は、GitHubのPull Requestから受け付けています。")
     st.divider()
+    if st.button("📷 学習用写真を登録・見る", key="open_training_gallery", use_container_width=True):
+        st.session_state.page = "training_gallery"
+
     if st.button("🧠 AIモデルを登録・確認する", key="open_model_registry", use_container_width=True):
         st.session_state.page = "model_registry"
         st.rerun()
@@ -2911,3 +2915,6 @@ elif st.session_state.page == "history_detail":
 # =========================================================
 elif st.session_state.page == "model_registry":
     model_registry.show()
+
+elif st.session_state.page == "training_gallery":
+    training_gallery.show()
