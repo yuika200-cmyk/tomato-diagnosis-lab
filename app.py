@@ -18,6 +18,7 @@ from html import escape
 import history_cloud
 import model_registry
 import training_gallery
+import bulk_classifier
 
 LOGGER = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parent
@@ -60,6 +61,10 @@ with st.sidebar:
     st.divider()
     if st.button("📷 AIモデル・学習写真データベース", key="open_training_gallery", use_container_width=True):
         st.session_state.page = "training_gallery"
+
+    if st.button("📦 写真をまとめてAI仮分類", key="open_bulk_classifier", use_container_width=True):
+        st.session_state.page = "bulk_classifier"
+        st.rerun()
 
     if st.button("🧠 AIモデルを登録・確認する", key="open_model_registry", use_container_width=True):
         st.session_state.page = "model_registry"
@@ -2918,3 +2923,10 @@ elif st.session_state.page == "model_registry":
 
 elif st.session_state.page == "training_gallery":
     training_gallery.show()
+
+
+# =========================================================
+# ⑧ 過去の写真を既存モデルで一括仮分類（必ず人が確認）
+# =========================================================
+elif st.session_state.page == "bulk_classifier":
+    bulk_classifier.show(load_tm_model, load_tm_labels)
