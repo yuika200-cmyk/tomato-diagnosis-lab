@@ -58,7 +58,7 @@ with st.sidebar:
     )
     st.caption("ソースコードの改良提案は、GitHubのPull Requestから受け付けています。")
     st.divider()
-    if st.button("📷 学習用写真を登録・見る", key="open_training_gallery", use_container_width=True):
+    if st.button("📷 AIモデル・学習写真データベース", key="open_training_gallery", use_container_width=True):
         st.session_state.page = "training_gallery"
 
     if st.button("🧠 AIモデルを登録・確認する", key="open_model_registry", use_container_width=True):
