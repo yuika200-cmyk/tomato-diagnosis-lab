@@ -1835,18 +1835,34 @@ def group_history_by_date(rows: list[dict]) -> dict:
 
 
 def show_sample_image(path: str, caption: str) -> None:
-    """
-    お手本画像がある場合だけ表示します。
-    元画像より大きく引き伸ばさず、画質が荒くならないように表示します。
-    """
+    """お手本画像をHTMLに直接埋め込み、画像配信URLを経由せず表示する。"""
+    import base64
+
     try:
         image_path = APP_DIR / path
-        if image_path.exists():
-            image = Image.open(image_path).convert("RGB")
+        if not image_path.is_file():
+            st.warning(f"お手本写真が見つかりません：{path}")
+            return
+
+        with Image.open(image_path) as source:
+            image = ImageOps.exif_transpose(source).convert("RGB")
             display_width = min(image.width, 360)
-            st.image(image, caption=caption, width=display_width)
-    except Exception:
-        pass
+            image.thumbnail((720, 720), Image.Resampling.LANCZOS)
+            buffer = io.BytesIO()
+            image.save(buffer, format="JPEG", quality=90)
+
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+        st.markdown(
+            f'<figure style="margin:0;max-width:{display_width}px;width:100%;">'
+            f'<img src="data:image/jpeg;base64,{encoded}" alt="{escape(caption)}" '
+            'style="display:block;width:100%;height:auto;" />'
+            f'<figcaption style="text-align:center;font-size:14px;color:#59635f;">'
+            f'{escape(caption)}</figcaption></figure>',
+            unsafe_allow_html=True,
+        )
+    except Exception as exc:
+        LOGGER.exception("Sample image display failed")
+        st.error(f"お手本写真を読み込めませんでした：{exc}")
 
 
 def save_diagnosis_image(uploaded_file, image_type: str) -> str:
