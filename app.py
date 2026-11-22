@@ -41,38 +41,8 @@ st.set_page_config(
     layout="wide",
 )
 
-# =========================================================
-# オープンソース開発への参加案内（サイドバー）
-# =========================================================
-with st.sidebar:
-    st.subheader("🛠️ 開発・改善に参加する")
-    st.write("植物診断ラボは、利用者や開発者が改良に参加できるオープンソースプロジェクトです。")
-    st.link_button(
-        "GitHubでプログラムを見る",
-        "https://github.com/yuika200-cmyk/tomato-diagnosis-lab",
-        use_container_width=True,
-    )
-    st.link_button(
-        "開発への参加方法を見る",
-        "https://github.com/yuika200-cmyk/tomato-diagnosis-lab/blob/main/CONTRIBUTING.md",
-        use_container_width=True,
-    )
-    st.caption("ソースコードの改良提案は、GitHubのPull Requestから受け付けています。")
-    st.divider()
-    if st.button("📷 AIモデル・学習写真データベース", key="open_training_gallery", use_container_width=True):
-        st.session_state.page = "training_gallery"
-
-    if st.button("📦 写真をまとめてAI仮分類", key="open_bulk_classifier", use_container_width=True):
-        st.session_state.page = "bulk_classifier"
-        st.rerun()
-
-    if st.button("🧠 AIモデルを登録・確認する", key="open_model_registry", use_container_width=True):
-        st.session_state.page = "model_registry"
-        st.rerun()
-    if st.session_state.get("page") == "model_registry":
-        if st.button("📷 写真診断に戻る", key="return_from_models", use_container_width=True):
-            st.session_state.page = "select_user"
-            st.rerun()
+# ホーム画面から診断・記録・AI改善機能へ移動できるため、
+# 重複するサイドバーのナビゲーションは表示しません。
 
 
 # =========================================================
@@ -129,7 +99,7 @@ HISTORY_COLUMNS = [
 # セッション初期化
 # =========================================================
 if "page" not in st.session_state:
-    st.session_state.page = "select_user"
+    st.session_state.page = "home"
 
 if "grade" not in st.session_state:
     st.session_state.grade = "3年"
@@ -1698,24 +1668,32 @@ div[data-testid="stButton"] button {
     unsafe_allow_html=True,
 )
 
-with st.expander('🔐 会員登録・ログイン／保存した記録を見る', expanded=False):
-    auth_screen = getattr(history_cloud, 'auth_panel', None)
-    if callable(auth_screen):
-        auth_screen()
-    else:
-        st.error('ログイン用ファイルが古い可能性があります。テスト用GitHubの history_cloud.py を最新版に更新してください。')
-        st.caption('診断だけの利用は引き続き可能です。')
+# =========================================================
+# 共通ヘッダー：どの画面でもログイン・ホームへ戻る操作を表示
+# =========================================================
+header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
+with header_brand:
+    st.markdown(
+        '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
+        'color:#165237;padding:6px 0;">🌱 AI生育診断アプリ</div>',
+        unsafe_allow_html=True,
+    )
+with header_account:
+    logged_in = history_cloud.user() is not None
+    with st.popover("👤 マイページ" if logged_in else "👤 ログイン・登録", use_container_width=True):
+        auth_screen = getattr(history_cloud, "auth_panel", None)
+        if callable(auth_screen):
+            auth_screen()
+        else:
+            st.error("ログイン用ファイルを確認してください（history_cloud.py）。")
 
+if st.session_state.page != "home":
+    if st.button("⌂ ホームに戻る", key="global_home_navigation"):
+        st.session_state.page = "home"
+        st.session_state.force_scroll_top = True
+        st.rerun()
 
-# 共通ヘッダー
-st.markdown(
-    """
-    <div class="lab-header">
-        <div class="lab-title"><span class="leaf">🌱</span><span>植物診断ラボ</span></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.divider()
 
 # =========================================================
 # 関数
@@ -1835,34 +1813,18 @@ def group_history_by_date(rows: list[dict]) -> dict:
 
 
 def show_sample_image(path: str, caption: str) -> None:
-    """お手本画像をHTMLに直接埋め込み、画像配信URLを経由せず表示する。"""
-    import base64
-
+    """
+    お手本画像がある場合だけ表示します。
+    元画像より大きく引き伸ばさず、画質が荒くならないように表示します。
+    """
     try:
         image_path = APP_DIR / path
-        if not image_path.is_file():
-            st.warning(f"お手本写真が見つかりません：{path}")
-            return
-
-        with Image.open(image_path) as source:
-            image = ImageOps.exif_transpose(source).convert("RGB")
+        if image_path.exists():
+            image = Image.open(image_path).convert("RGB")
             display_width = min(image.width, 360)
-            image.thumbnail((720, 720), Image.Resampling.LANCZOS)
-            buffer = io.BytesIO()
-            image.save(buffer, format="JPEG", quality=90)
-
-        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-        st.markdown(
-            f'<figure style="margin:0;max-width:{display_width}px;width:100%;">'
-            f'<img src="data:image/jpeg;base64,{encoded}" alt="{escape(caption)}" '
-            'style="display:block;width:100%;height:auto;" />'
-            f'<figcaption style="text-align:center;font-size:14px;color:#59635f;">'
-            f'{escape(caption)}</figcaption></figure>',
-            unsafe_allow_html=True,
-        )
-    except Exception as exc:
-        LOGGER.exception("Sample image display failed")
-        st.error(f"お手本写真を読み込めませんでした：{exc}")
+            st.image(image, caption=caption, width=display_width)
+    except Exception:
+        pass
 
 
 def save_diagnosis_image(uploaded_file, image_type: str) -> str:
@@ -2311,7 +2273,7 @@ if st.session_state.page == "select_user":
     st.markdown('<div class="select-title">🍅 トマトの状態をAIで確認</div>', unsafe_allow_html=True)
     st.markdown('<div class="select-help">登録不要・無料。写真を1枚選んで診断できます。</div>', unsafe_allow_html=True)
     st.info("このアプリはトマト専用です。結果は参考情報であり、病気の確定診断ではありません。")
-    st.caption("診断だけなら保存しません。保存したい場合は画面上部の「会員登録・ログイン」から登録・ログインしてください。")
+    st.caption("診断だけなら保存しません。保存したい場合は右上の「ログイン・登録」から登録・ログインしてください。")
     planting_date_known = st.checkbox("植え付け日が分かる", value=st.session_state.planting_date_known)
     planting_date = date.today()
     if planting_date_known:
@@ -2339,70 +2301,87 @@ if st.session_state.page == "select_user":
 
 
 # =========================================================
-# ② ホーム画面
+# ② 新ホーム画面（写真なし・診断／記録とAI改善を分ける）
 # =========================================================
 elif st.session_state.page == "home":
-
     if st.session_state.get("force_scroll_top", False):
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
-    last_history = load_last_history()
-    last_date_text = "ログイン不要・保存なし" if not can_save_history() else "まだありません"
-
-    st.info("診断のみは登録不要です。履歴保存はログインした方が任意で使えます。")
-
-    if last_history is not None:
-        last_date_text = last_history.get("created_at", "")
-        try:
-            last_date_text = datetime.fromisoformat(last_date_text).strftime("%Y/%m/%d")
-        except Exception:
-            last_date_text = last_date_text[:10]
-
     st.markdown(
-        f"""
-        <div class="home-card-head">
-            <div>
-                <div class="home-main-title">診断をはじめる</div>
-                <div class="home-sub">{st.session_state.plant_type}のようすを記録して診断します</div>
-            </div>
-            <div class="last-pill">前回診断：{last_date_text}</div>
-        </div>
+        """
+        <style>
+        .home-hero-title {font-size:clamp(25px,3.2vw,36px);font-weight:900;color:#153e2d;margin:12px 0 6px;}
+        .home-hero-text {font-size:15px;color:#50635a;margin:0 0 18px;line-height:1.6;}
+        .home-section-title {font-size:21px;font-weight:850;color:#184c32;margin:12px 0 4px;}
+        .home-help {font-size:13px;color:#64756b;margin:0 0 12px;}
+        div[data-testid="stMainBlockContainer"] {max-width:980px;}
+        </style>
+        <div class="home-hero-title">育てる、調べる、改善する。</div>
+        <p class="home-hero-text">ミニトマトの写真から生育状態をAIで診断。成長の記録やAIの改善にも参加できます。</p>
+        <div class="home-section-title">🌱 植物を育てる・診断する</div>
+        <p class="home-help">診断はログイン不要。記録を残したいときだけログインしてください。</p>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        f"""
-        <div class="today-card" style="margin-bottom:18px;">
-            <div class="today-title">🌱 初回設定</div>
-            <div class="today-advice" style="margin-top:0;">
-                <div class="today-advice-title">{st.session_state.grade}{st.session_state.class_name}</div>
-                <div class="today-advice-text">育てている植物：{st.session_state.plant_type}<br>植え付け日：{st.session_state.planting_date.strftime('%Y/%m/%d')}</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    col_diagnosis, col_history = st.columns(2, gap="large")
-
-    with col_diagnosis:
-        if st.button("📷 今日の診断をする", use_container_width=True):
+    with st.container(border=True):
+        st.markdown("### 📷 AI写真診断")
+        st.write("全体写真1枚から、株全体・葉・実の状態を診断します。")
+        st.caption("登録不要・無料で利用できます")
+        if st.button("写真診断をはじめる", type="primary", use_container_width=True, key="home_start_diagnosis"):
+            st.session_state.page = "select_user"
             st.session_state.force_scroll_top = True
-            st.session_state.page = "diagnosis_upload"
             st.rerun()
 
-    with col_history:
-        if st.button("🌱 成長の記録を見る", use_container_width=True, disabled=not can_save_history()):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "history_calendar"
-            st.rerun()
+    with st.container(border=True):
+        st.markdown("### 📅 成長の記録")
+        st.write("保存した診断結果や栽培記録を確認できます。")
+        if st.button("成長の記録を見る", use_container_width=True, key="home_open_history"):
+            if can_save_history():
+                st.session_state.page = "history_calendar"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+            else:
+                st.session_state.show_history_login_help = True
+        if st.session_state.get("show_history_login_help") and not can_save_history():
+            st.info("成長の記録を見るには、画面右上の「ログイン・登録」からログインしてください。")
 
     st.markdown(
-        '<div class="student-change-link-wrap"><a class="student-change-link" href="?change_student=1">初回設定を変更する</a></div>',
+        '<div class="home-section-title">🧠 AIをつくる・改善する</div>'
+        '<p class="home-help">学習写真やAIモデルを管理し、診断AIの改善に参加できます。</p>',
         unsafe_allow_html=True,
     )
+    model_col, photo_col = st.columns(2, gap="medium")
+    with model_col:
+        with st.container(border=True):
+            st.markdown("#### 🧠 AIモデル管理")
+            st.caption("AIモデルの登録・確認")
+            if st.button("モデル管理を開く", key="home_open_model_registry", use_container_width=True):
+                st.session_state.page = "model_registry"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+    with photo_col:
+        with st.container(border=True):
+            st.markdown("#### 🖼️ 学習写真管理")
+            st.caption("学習写真の登録・確認")
+            if st.button("学習写真を開く", key="home_open_training_gallery", use_container_width=True):
+                st.session_state.page = "training_gallery"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+
+    with st.expander("📦 写真をまとめてAI仮分類する"):
+        st.write("複数の写真を既存モデルで仮分類します。結果は人が確認してください。")
+        if st.button("一括仮分類を開く", key="home_open_bulk_classifier", use_container_width=True):
+            st.session_state.page = "bulk_classifier"
+            st.session_state.force_scroll_top = True
+            st.rerun()
+
+    st.divider()
+    st.markdown("**🛠️ アプリの開発・改善に参加する**")
+    st.link_button("GitHubでソースコードを見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab", use_container_width=True)
+    st.link_button("開発への参加方法を見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab/blob/main/CONTRIBUTING.md", use_container_width=True)
+    st.caption("AIの診断結果は参考情報です。実際の植物や栽培記録も確認してください。")
 
 
 # =========================================================
@@ -2712,7 +2691,7 @@ elif st.session_state.page == "diagnosis_result":
                 st.session_state.page = 'history_calendar'
                 st.rerun()
     else:
-        st.caption('今回の結果は保存されていません。保存するには画面上部の「会員登録・ログイン」でログインしてから診断してください。')
+        st.caption('今回の結果は保存されていません。保存するには右上の「ログイン・登録」でログインしてから診断してください。')
         if st.button('↻ もう一度診断する', use_container_width=True):
             st.session_state.page = 'diagnosis_upload'
             st.rerun()
