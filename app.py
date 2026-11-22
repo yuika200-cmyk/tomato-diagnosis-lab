@@ -1713,7 +1713,10 @@ if st.session_state.page != "home":
         st.session_state.force_scroll_top = True
         st.rerun()
 
-st.divider()
+if st.session_state.page == "diagnosis_upload":
+    st.markdown('<div class="diagnosis-header-rule"></div>', unsafe_allow_html=True)
+else:
+    st.divider()
 
 # =========================================================
 # 関数
@@ -2442,15 +2445,27 @@ elif st.session_state.page == "diagnosis_upload":
     # 診断画面だけを程よくコンパクトにする（結果画面やホームは変更しない）。
     st.markdown("""
     <style>
-      div[data-testid="stMainBlockContainer"] { max-width: 850px !important; }
+      /* 診断画面だけ：ページ上部と共通ヘッダーの余白を縮める */
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title) {
+        max-width: 850px !important;
+        padding-top: 0.6rem !important;
+        padding-bottom: 1rem !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      > div > div[data-testid="stVerticalBlock"] {
+        gap: 0.4rem !important;
+      }
+      .diagnosis-header-rule {height:1px;background:#dce6df;margin:2px 0 5px;}
       .diagnosis-new-title { font-size: 27px; font-weight: 900; color: #153e2d; margin: 0 0 3px; }
       .diagnosis-new-meta { color: #52645a; font-size: 13px; margin-bottom: 5px; }
-      .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 5px 0 3px; }
+      .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 2px 0 1px; }
       .diagnosis-new-help { color: #596b61; font-size: 13px; margin: 0 0 4px; }
       /* この画面では縦の基本間隔を少し詰める。重なりが出ない値にする。 */
-      div[data-testid="stMainBlockContainer"] > div > div[data-testid="stVerticalBlock"] {
-        gap: 0.65rem !important;
-      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stCheckbox"] {margin: 0 !important;}
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stHorizontalBlock"] {align-items:start;}
+
       div[data-testid="stMainBlockContainer"] [data-testid="stDivider"] { margin: 0.15rem 0 !important; }
       div[data-testid="stFileUploader"] { margin-top: 0 !important; }
       div[data-testid="stFileUploader"] section,
@@ -2480,7 +2495,7 @@ elif st.session_state.page == "diagnosis_upload":
             "植え付け日", value=min(st.session_state.planting_date, date.today()),
             max_value=date.today(), key="diagnosis_planting_date")
 
-    st.divider()
+    st.markdown('<div class="diagnosis-header-rule"></div>', unsafe_allow_html=True)
     st.markdown('<div class="diagnosis-new-section">② 写真をアップロード</div>'
                 '<div class="diagnosis-new-help">ミニトマトの全体が写る写真を1枚選んでください。</div>',
                 unsafe_allow_html=True)
@@ -2491,6 +2506,8 @@ elif st.session_state.page == "diagnosis_upload":
         sample_path = APP_DIR / "sample_whole_image.png"
         if sample_path.exists():
             st.image(str(sample_path), caption="全体写真のお手本", width=220)
+        else:
+            st.caption("お手本写真は sample_whole_image.png をアプリと同じフォルダに置くと表示されます。")
     with upload_col:
         whole_file = st.file_uploader(
             "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
