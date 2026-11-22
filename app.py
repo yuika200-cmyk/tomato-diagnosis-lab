@@ -2491,6 +2491,19 @@ elif st.session_state.page == "diagnosis_upload":
         min-height: 125px !important;
         padding: 12px !important;
       }
+      /* 選択ボタンの文字が縦に折り返されないようにする。 */
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button {
+        white-space: nowrap !important;
+        min-width: 140px !important;
+        font-size: 15px !important;
+        padding: 0 18px !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploaderDropzone"] {
+        align-items: center !important;
+        justify-content: center !important;
+      }
       /* 診断するボタンは操作しやすい高さを確保。 */
       div[data-testid="stMainBlockContainer"] .stButton button { min-height: 44px; }
       @media (max-width: 640px) {
@@ -2564,21 +2577,44 @@ elif st.session_state.page == "diagnosis_upload":
 
     with upload_col:
         st.markdown('<div class="diagnosis-photo-label">選択した写真</div>', unsafe_allow_html=True)
-        whole_file = st.file_uploader(
-            "全体写真をアップロード",
-            type=SUPPORTED_UPLOAD_TYPES,
-            key="diagnosis_whole",
-            label_visibility="collapsed",
-        )
-        if whole_file is not None:
-            try:
-                selected_image = validated_upload(whole_file)
-                show_inline_preview(selected_image)
-            except (ValueError, OSError) as exc:
-                st.warning(str(exc))
+
+        # アップロード済みなら、大きな選択枠の代わりに写真を表示する。
+        # Widgetが一時的に非表示でも診断できるよう、元画像のバイト列を保持。
+        saved_photo = st.session_state.get("diagnosis_selected_photo_bytes")
+        if saved_photo is None:
+            uploaded = st.file_uploader(
+                "全体写真をアップロード",
+                type=SUPPORTED_UPLOAD_TYPES,
+                key="diagnosis_whole",
+                label_visibility="collapsed",
+            )
+            if uploaded is not None:
+                try:
+                    # エラー画像を保存しないよう、最初に検証する。
+                    checked_image = validated_upload(uploaded)
+                    saved_photo = uploaded.getvalue()
+                    st.session_state.diagnosis_selected_photo_bytes = saved_photo
+                    show_inline_preview(checked_image)
+                except ValueError as exc:
+                    st.warning(str(exc))
+            else:
+                st.caption("JPG・PNG・HEIC／最大10MB")
         else:
-            st.caption("ここで写真を選択すると、お手本と同じ大きさで表示されます。")
-        st.caption("JPG・PNG・HEIC／最大10MB")
+            try:
+                show_inline_preview(validated_upload(io.BytesIO(saved_photo)))
+            except ValueError as exc:
+                st.warning(str(exc))
+                saved_photo = None
+                st.session_state.diagnosis_selected_photo_bytes = None
+
+        if saved_photo is not None:
+            # 次のクリック時に状態を解除し、アップロード欄を再表示。
+            if st.button("写真を変更する", key="diagnosis_change_photo", type="secondary"):
+                st.session_state.diagnosis_selected_photo_bytes = None
+                st.rerun()
+
+    # モデル入力用には加工していない元のアップロード画像を渡す。
+    whole_file = io.BytesIO(saved_photo) if saved_photo is not None else None
 
     fruit_visible = st.radio(
         "写真に実が写っていますか？", ["写っている", "写っていない"],
