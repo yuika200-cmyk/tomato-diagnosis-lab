@@ -1675,7 +1675,7 @@ header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
 with header_brand:
     st.markdown(
         '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
-        'color:#165237;padding:6px 0;">🌱 AI生育診断アプリ</div>',
+        'color:#165237;padding:6px 0;">AI生育診断アプリ</div>',
         unsafe_allow_html=True,
     )
 with header_account:
@@ -2301,7 +2301,7 @@ if st.session_state.page == "select_user":
 
 
 # =========================================================
-# ② 新ホーム画面（写真なし・診断／記録とAI改善を分ける）
+# ② ホーム画面（コンパクト版：PCは2列／スマホは1列）
 # =========================================================
 elif st.session_state.page == "home":
     if st.session_state.get("force_scroll_top", False):
@@ -2311,79 +2311,117 @@ elif st.session_state.page == "home":
     st.markdown(
         """
         <style>
-        .home-hero-title {font-size:clamp(25px,3.2vw,36px);font-weight:900;color:#153e2d;margin:12px 0 6px;}
-        .home-hero-text {font-size:15px;color:#50635a;margin:0 0 18px;line-height:1.6;}
-        .home-section-title {font-size:21px;font-weight:850;color:#184c32;margin:12px 0 4px;}
-        .home-help {font-size:13px;color:#64756b;margin:0 0 12px;}
-        div[data-testid="stMainBlockContainer"] {max-width:980px;}
+        /* ホーム画面に限り、余白を抑えて視線移動を短くする */
+        div[data-testid="stMainBlockContainer"] {
+            max-width: 950px !important;
+            padding-top: 0.2rem !important;
+            padding-bottom: 1rem !important;
+        }
+        div[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {
+            gap: 0.55rem;
+        }
+        div[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 14px !important;
+        }
+        .compact-home-heading {
+            font-size: 22px; font-weight: 850; color: #184c32;
+            margin: 4px 0 1px; line-height: 1.3;
+        }
+        .compact-home-sub {
+            color: #5d7165; font-size: 13px; line-height: 1.4;
+            margin: 0 0 3px;
+        }
+        .compact-home-card-title {
+            font-size: 19px; font-weight: 850; color: #153e2d;
+            margin: 0 0 4px;
+        }
+        .compact-home-card-desc {
+            font-size: 13px; color: #52645a; line-height: 1.45;
+            min-height: 19px; margin: 0;
+        }
+        div[data-testid="stMainBlockContainer"] .stButton > button,
+        div[data-testid="stMainBlockContainer"] .stLinkButton > a {
+            min-height: 39px !important; font-size: 14px !important;
+            font-weight: 800 !important; box-shadow: none !important;
+            border-radius: 10px !important;
+        }
+        @media (max-width: 640px) {
+            .compact-home-heading {font-size: 19px;}
+            .compact-home-card-title {font-size: 17px;}
+            .compact-home-sub,.compact-home-card-desc {font-size: 12px;}
+        }
         </style>
-        <div class="home-hero-title">育てる、調べる、改善する。</div>
-        <p class="home-hero-text">ミニトマトの写真から生育状態をAIで診断。成長の記録やAIの改善にも参加できます。</p>
-        <div class="home-section-title">🌱 植物を育てる・診断する</div>
-        <p class="home-help">診断はログイン不要。記録を残したいときだけログインしてください。</p>
+        <div class="compact-home-heading">作物を診断する</div>
+        <div class="compact-home-sub">診断はログイン不要。記録を残したいときだけログインしてください。</div>
         """,
         unsafe_allow_html=True,
     )
 
-    with st.container(border=True):
-        st.markdown("### 📷 AI写真診断")
-        st.write("全体写真1枚から、株全体・葉・実の状態を診断します。")
-        st.caption("登録不要・無料で利用できます")
-        if st.button("写真診断をはじめる", type="primary", use_container_width=True, key="home_start_diagnosis"):
-            st.session_state.page = "select_user"
-            st.session_state.force_scroll_top = True
-            st.rerun()
-
-    with st.container(border=True):
-        st.markdown("### 📅 成長の記録")
-        st.write("保存した診断結果や栽培記録を確認できます。")
-        if st.button("成長の記録を見る", use_container_width=True, key="home_open_history"):
-            if can_save_history():
-                st.session_state.page = "history_calendar"
+    diagnose_col, history_col = st.columns(2, gap="small")
+    with diagnose_col:
+        with st.container(border=True):
+            st.markdown('<div class="compact-home-card-title">AI生育診断</div>'
+                        '<div class="compact-home-card-desc">全体写真1枚から診断します。</div>',
+                        unsafe_allow_html=True)
+            if st.button("AI生育診断をはじめる", type="primary", use_container_width=True,
+                         key="home_start_diagnosis"):
+                st.session_state.page = "select_user"
                 st.session_state.force_scroll_top = True
                 st.rerun()
-            else:
-                st.session_state.show_history_login_help = True
-        if st.session_state.get("show_history_login_help") and not can_save_history():
-            st.info("成長の記録を見るには、画面右上の「ログイン・登録」からログインしてください。")
+    with history_col:
+        with st.container(border=True):
+            st.markdown('<div class="compact-home-card-title">成長の記録</div>'
+                        '<div class="compact-home-card-desc">保存した診断結果や栽培記録を確認できます。</div>',
+                        unsafe_allow_html=True)
+            if st.button("成長の記録を見る", use_container_width=True, key="home_open_history"):
+                if can_save_history():
+                    st.session_state.page = "history_calendar"
+                    st.session_state.force_scroll_top = True
+                    st.rerun()
+                else:
+                    st.session_state.show_history_login_help = True
 
-    st.markdown(
-        '<div class="home-section-title">🧠 AIをつくる・改善する</div>'
-        '<p class="home-help">学習写真やAIモデルを管理し、診断AIの改善に参加できます。</p>',
-        unsafe_allow_html=True,
-    )
-    model_col, photo_col = st.columns(2, gap="medium")
+    if st.session_state.get("show_history_login_help") and not can_save_history():
+        st.info("成長の記録を見るには、右上の『ログイン・登録』からログインしてください。")
+
+    st.markdown('<div class="compact-home-heading">AIの開発・改善</div>', unsafe_allow_html=True)
+    model_col, program_col = st.columns(2, gap="small")
     with model_col:
         with st.container(border=True):
-            st.markdown("#### 🧠 AIモデル管理")
-            st.caption("AIモデルの登録・確認")
-            if st.button("モデル管理を開く", key="home_open_model_registry", use_container_width=True):
+            st.markdown('<div class="compact-home-card-title">① AIモデルを改善する</div>'
+                        '<div class="compact-home-card-desc">学習写真を追加・分類し、AIの判定精度を高めます。</div>',
+                        unsafe_allow_html=True)
+            if st.button("AIモデルの改善へ", use_container_width=True, key="home_open_model_registry"):
                 st.session_state.page = "model_registry"
                 st.session_state.force_scroll_top = True
                 st.rerun()
-    with photo_col:
+            with st.expander("学習写真の登録・仮分類はこちら"):
+                if st.button("学習写真を見る", use_container_width=True, key="home_open_training_gallery"):
+                    st.session_state.page = "training_gallery"
+                    st.session_state.force_scroll_top = True
+                    st.rerun()
+                if st.button("写真を一括仮分類", use_container_width=True, key="home_open_bulk_classifier"):
+                    st.session_state.page = "bulk_classifier"
+                    st.session_state.force_scroll_top = True
+                    st.rerun()
+    with program_col:
         with st.container(border=True):
-            st.markdown("#### 🖼️ 学習写真管理")
-            st.caption("学習写真の登録・確認")
-            if st.button("学習写真を開く", key="home_open_training_gallery", use_container_width=True):
-                st.session_state.page = "training_gallery"
-                st.session_state.force_scroll_top = True
-                st.rerun()
+            st.markdown('<div class="compact-home-card-title">② プログラムを改善する</div>'
+                        '<div class="compact-home-card-desc">診断結果に応じた条件分岐やアドバイスを変更します。</div>',
+                        unsafe_allow_html=True)
+            st.button("プログラムの改善へ（準備中）", use_container_width=True,
+                      key="home_program_pending", disabled=True)
+            st.caption("教材用の編集画面は今後追加します。")
 
-    with st.expander("📦 写真をまとめてAI仮分類する"):
-        st.write("複数の写真を既存モデルで仮分類します。結果は人が確認してください。")
-        if st.button("一括仮分類を開く", key="home_open_bulk_classifier", use_container_width=True):
-            st.session_state.page = "bulk_classifier"
-            st.session_state.force_scroll_top = True
-            st.rerun()
-
-    st.divider()
-    st.markdown("**🛠️ アプリの開発・改善に参加する**")
-    st.link_button("GitHubでソースコードを見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab", use_container_width=True)
-    st.link_button("開発への参加方法を見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab/blob/main/CONTRIBUTING.md", use_container_width=True)
-    st.caption("AIの診断結果は参考情報です。実際の植物や栽培記録も確認してください。")
+    with st.expander("GitHub・アプリの開発に参加する"):
+        st.link_button("ソースコードを見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab",
+                       use_container_width=True)
+        st.link_button("参加方法を見る", "https://github.com/yuika200-cmyk/tomato-diagnosis-lab/blob/main/CONTRIBUTING.md",
+                       use_container_width=True)
+    st.caption("現在の診断対象はミニトマトです。AIの判定は参考情報としてご利用ください。")
 
 
+# =========================================================
 # =========================================================
 # ③ 写真アップロード画面
 # =========================================================
