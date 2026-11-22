@@ -2865,21 +2865,61 @@ elif st.session_state.page == "diagnosis_result":
         .result-v2-unified-head,.result-v2-unified-flag {font-size:10px;}
         .result-v2-unified-comment {font-size:11px;}
       }
+      /* 結果画面のみ: アプリ名の上・ヘッダー下の無駄な余白を減らす */
+      div[data-testid="stMainBlockContainer"]:has(.result-v2-heading) {
+        padding-top: 0.35rem !important;
+        padding-bottom: 1rem !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.result-v2-heading)
+      > div > div[data-testid="stVerticalBlock"] {
+        gap: 0.45rem !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.result-v2-heading)
+      [data-testid="stHorizontalBlock"] { margin-bottom: 0 !important; }
+      /* 結果タイトルと日付をまとめ、上部を小さくする */
+      .result-v2-topline {display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:1px 0 2px;}
+      .result-v2-heading {margin:0 !important;font-size:25px;}
+      .result-v2-date {white-space:nowrap;}
+      /* 比較表: 列の見やすさと状態ラベルを改善 */
+      .result-v2-section {padding:14px 17px;margin:3px 0 5px;}
+      .result-v2-section-title {font-size:19px;margin-bottom:8px;}
+      .result-v2-unified-row {gap:14px;padding:11px 8px;font-size:14px;line-height:1.45;align-items:center;}
+      .result-v2-unified-row.comparison {grid-template-columns:75px minmax(0,1.15fr) minmax(0,1.35fr) 84px;}
+      .result-v2-unified-row.simple {grid-template-columns:82px minmax(85px,145px) minmax(0,1fr);}
+      .result-v2-unified-head {background:#f4f8f5;border-radius:7px;padding:8px 8px;font-size:12px;}
+      .result-v2-unified-comment {margin-top:3px;font-size:12px;}
+      .result-v2-unified-flag {display:inline-block;width:fit-content;padding:4px 8px;border-radius:999px;font-size:12px;}
+      .result-v2-unified-flag.match {background:#e9f6ed;color:#1e7c45;}
+      .result-v2-unified-flag.diff {background:#fff2df;color:#9d5e00;}
+      .result-v2-unified-flag.neutral {background:#f1f3f1;color:#66746b;}
+      .result-v2-advice {margin:6px 0 3px;padding:13px 16px;}
+      .result-v2-advice-content {font-size:15px;line-height:1.55;}
+      @media(max-width:680px) {
+        .result-v2-topline {align-items:center;}
+        .result-v2-heading {font-size:22px;}
+        .result-v2-section {padding:11px 10px;}
+        .result-v2-unified-row {gap:5px;padding:9px 3px;font-size:12px;}
+        .result-v2-unified-row.comparison {grid-template-columns:44px minmax(0,1fr) minmax(0,1fr) 56px;}
+        .result-v2-unified-row.simple {grid-template-columns:47px 72px minmax(0,1fr);}
+        .result-v2-unified-head {font-size:10px;}
+        .result-v2-unified-flag {font-size:10px;padding:3px 4px;}
+        .result-v2-unified-comment {font-size:11px;}
+      }
       .result-v2-back {text-align:center;margin:7px 0 0;}
       .result-v2-back a {font-size:13px;color:#758079;text-decoration:none;}
       .result-v2-back a:hover {text-decoration:underline;color:#526158;}
       @media(max-width:680px) {
         .result-v2-item {grid-template-columns:68px 1fr;gap:3px 9px;padding:7px 0;}
         .result-v2-comment {grid-column:2;}
-        .result-v2-section {padding:10px 12px;}
+        .result-v2-section {padding:11px 10px;}
         .result-v2-advice {padding:11px 12px;}
       }
     </style>
     """, unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="result-v2-heading">診断結果</div>'
-        f'<div class="result-v2-date">記録日：{date.today().strftime("%Y/%m/%d")}</div>',
+        '<div class="result-v2-topline"><div class="result-v2-heading">診断結果</div>'
+        f'<div class="result-v2-date">記録日：{date.today().strftime("%Y/%m/%d")}</div></div>',
         unsafe_allow_html=True,
     )
     if isinstance(record.get("days_grown"), int):
