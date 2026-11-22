@@ -1691,7 +1691,24 @@ if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
 if st.session_state.page != "home":
-    if st.button("⌂ ホームに戻る", key="global_home_navigation"):
+    # 戻る操作は小さなリンク風ボタンとして右側に配置
+    st.markdown("""
+    <style>
+      .st-key-global_home_navigation {text-align:right;}
+      .st-key-global_home_navigation button {
+          width:auto !important; min-height:30px !important;
+          height:32px !important; padding:3px 10px !important;
+          font-size:12px !important; font-weight:600 !important;
+          background:transparent !important; color:#52645a !important;
+          border:1px solid #d7e2da !important;
+          border-radius:8px !important; box-shadow:none !important;
+      }
+      .st-key-global_home_navigation button:hover {
+          background:#f3f8f4 !important; color:#247a46 !important;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+    if st.button("← ホームに戻る", key="global_home_navigation"):
         st.session_state.page = "home"
         st.session_state.force_scroll_top = True
         st.rerun()
@@ -2457,15 +2474,20 @@ elif st.session_state.page == "diagnosis_upload":
     st.markdown('<div class="diagnosis-new-section">② 写真をアップロード</div>'
                 '<div class="diagnosis-new-help">ミニトマトの全体が写る写真を1枚選んでください。</div>',
                 unsafe_allow_html=True)
-    whole_file = st.file_uploader(
-        "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
-        key="diagnosis_whole", label_visibility="collapsed")
-    if whole_file is not None:
-        try:
-            st.image(validated_upload(whole_file), caption="選択した写真", width=200)
-        except ValueError as exc:
-            st.warning(str(exc))
-    st.caption("JPG・PNG・HEIC／最大10MB")
+    # お手本写真とアップロード欄を並べて、撮影の参考にできるようにする。
+    sample_col, upload_col = st.columns(2, gap="medium")
+    with sample_col:
+        show_sample_image("sample_whole_image.png", "全体写真のお手本")
+    with upload_col:
+        whole_file = st.file_uploader(
+            "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
+            key="diagnosis_whole", label_visibility="collapsed")
+        if whole_file is not None:
+            try:
+                st.image(validated_upload(whole_file), caption="選択した写真", width=180)
+            except ValueError as exc:
+                st.warning(str(exc))
+        st.caption("JPG・PNG・HEIC／最大10MB")
     fruit_visible = st.radio(
         "写真に実が写っていますか？", ["写っている", "写っていない"],
         index=1, horizontal=True,
@@ -2480,7 +2502,6 @@ elif st.session_state.page == "diagnosis_upload":
     missing_models = [key for key in MODEL_NAMES if not (MODEL_DIR / key / "keras_model.h5").is_file() or not (MODEL_DIR / key / "labels.txt").is_file()]
     if missing_models:
         st.error("AI診断用の学習済みモデルが未配置です。管理者にお問い合わせください。写真や記録は送信されません。")
-    st.caption("AIの判定は参考情報です。実際の植物の状態も確認してください。")
 
     if st.button("診断する", use_container_width=True, disabled=bool(missing_models)):
         if whole_file is None:
