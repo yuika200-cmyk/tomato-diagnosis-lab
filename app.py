@@ -156,7 +156,7 @@ if guest_query == "1":
 
 if change_query == "1":
     st.session_state.force_scroll_top = True
-    st.session_state.page = "select_user"
+    st.session_state.page = "diagnosis_upload"
     try:
         st.query_params.clear()
     except Exception:
@@ -1687,6 +1687,9 @@ with header_account:
         else:
             st.error("ログイン用ファイルを確認してください（history_cloud.py）。")
 
+if st.session_state.page == "select_user":
+    st.session_state.page = "diagnosis_upload"
+
 if st.session_state.page != "home":
     if st.button("⌂ ホームに戻る", key="global_home_navigation"):
         st.session_state.page = "home"
@@ -2261,49 +2264,9 @@ def force_scroll_top() -> None:
 
 
 # =========================================================
-# ① 初回設定画面
-# =========================================================
-if st.session_state.page == "select_user":
-    if st.session_state.get("force_scroll_top", False):
-        force_scroll_top()
-        st.session_state.force_scroll_top = False
-
-    st.markdown('<div class="select-page-wrap">', unsafe_allow_html=True)
-
-    st.markdown('<div class="select-title">🍅 トマトの状態をAIで確認</div>', unsafe_allow_html=True)
-    st.markdown('<div class="select-help">登録不要・無料。写真を1枚選んで診断できます。</div>', unsafe_allow_html=True)
-    st.info("このアプリはトマト専用です。結果は参考情報であり、病気の確定診断ではありません。")
-    st.caption("診断だけなら保存しません。保存したい場合は右上の「ログイン・登録」から登録・ログインしてください。")
-    planting_date_known = st.checkbox("植え付け日が分かる", value=st.session_state.planting_date_known)
-    planting_date = date.today()
-    if planting_date_known:
-        planting_date = st.date_input("植え付け日", value=st.session_state.planting_date, max_value=date.today())
-
-    st.write("")
-
-    if planting_date > date.today():
-        st.warning("植え付け日は今日以前の日付を選んでください。")
-
-    if st.button("📷 写真診断をはじめる ›", use_container_width=True, disabled=planting_date > date.today()):
-        st.session_state.grade = ""
-        st.session_state.class_name = ""
-        st.session_state.student_number = ""
-        st.session_state.student_name = ""
-        st.session_state.plant_type = "トマト"
-        st.session_state.planting_date = planting_date
-        st.session_state.planting_date_known = planting_date_known
-        st.session_state.user_id = "guest"
-        st.session_state.force_scroll_top = True
-        st.session_state.page = "diagnosis_upload"
-        st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# =========================================================
 # ② ホーム画面（コンパクト版：PCは2列／スマホは1列）
 # =========================================================
-elif st.session_state.page == "home":
+if st.session_state.page == "home":
     if st.session_state.get("force_scroll_top", False):
         force_scroll_top()
         st.session_state.force_scroll_top = False
@@ -2389,7 +2352,7 @@ elif st.session_state.page == "home":
                         unsafe_allow_html=True)
             if st.button("AI生育診断をはじめる", type="primary", use_container_width=True,
                          key="home_start_diagnosis"):
-                st.session_state.page = "select_user"
+                st.session_state.page = "diagnosis_upload"
                 st.session_state.force_scroll_top = True
                 st.rerun()
     with history_col:
@@ -2454,149 +2417,70 @@ elif st.session_state.page == "diagnosis_upload":
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
+    # 画面統合版：入力は植え付け日（任意）・全体写真・実の有無の3点のみ。
+    st.session_state.plant_type = "トマト"
     plant_type = st.session_state.plant_type
     today_text = date.today().strftime("%Y/%m/%d")
 
-    st.markdown(
-        f"""
-        <div class="observe-head simple-observe-head">
-            <div>
-                <div class="observe-title-main"> 今日の観察と写真</div>
-            </div>
-            <div class="observe-meta">
-                📅 記録日：{today_text}<br>
-                {st.session_state.grade}{st.session_state.class_name}　｜　{st.session_state.plant_type}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # この画面にだけ適用する余白設定。既存の診断結果画面は変えない。
+    st.markdown("""
+    <style>
+      div[data-testid="stMainBlockContainer"] { max-width: 850px !important; }
+      .diagnosis-new-title { font-size: 29px; font-weight: 900; color: #153e2d; margin: 0 0 6px; }
+      .diagnosis-new-meta { color: #52645a; font-size: 14px; margin-bottom: 15px; }
+      .diagnosis-new-section { font-size: 21px; font-weight: 850; color: #173e2c; margin: 13px 0 9px; }
+      .diagnosis-new-help { color: #596b61; font-size: 14px; margin: 0 0 10px; }
+      /* 写真の選択欄が不必要に縦長にならないよう調整 */
+      [data-testid="stFileUploader"] section,
+      [data-testid="stFileUploaderDropzone"] { min-height: 145px !important; }
+      @media (max-width: 640px) {
+        .diagnosis-new-title {font-size: 25px;}
+        .diagnosis-new-section {font-size: 19px;}
+      }
+    </style>
+    """, unsafe_allow_html=True)
 
-    st.markdown('<div class="observe-divider"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="diagnosis-new-title">今日の診断</div>'
+                f'<div class="diagnosis-new-meta">記録日：{today_text}　｜　対象：ミニトマト</div>',
+                unsafe_allow_html=True)
 
-    st.markdown(
-        """
-        <div class="observe-section-title">
-            <span class="observe-step-inline">1</span>
-            <span> 水やりをしましたか？</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    watered_today = st.radio(
-        "水やりをしましたか？",
-        ["した", "していない"],
-        horizontal=True,
-        label_visibility="collapsed",
-    )
-
-    st.markdown('<div class="observe-divider"></div>', unsafe_allow_html=True)
-
-    st.markdown(
-        """
-        <div class="observe-section-title">
-            <span class="observe-step-inline">2</span>
-            <span> 今日行った作業</span>
-        </div>
-        <div class="observe-help-line">行った作業をすべて選んでください（複数選択可）</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    work_col1, work_col2 = st.columns(2, gap="large")
-    with work_col1:
-        work_topping = st.checkbox(" 摘心", key="work_topping")
-        work_fertilizer = st.checkbox(" 追肥（肥料）", key="work_fertilizer")
-        work_pollination = st.checkbox(" 受粉", key="work_pollination")
-        work_other = st.checkbox(" その他", key="work_other")
-    with work_col2:
-        work_side_shoot = st.checkbox(" わき芽取り", key="work_side_shoot")
-        work_support = st.checkbox(" 支柱立て", key="work_support")
-        work_harvest = st.checkbox(" 収穫", key="work_harvest")
-
-    other_work_text = ""
-    if work_other:
-        other_work_text = st.text_input(
-            "その他の作業",
-            placeholder="例：葉かき、土寄せ、間引き など",
-        )
-
-    work_items = []
-    if work_topping:
-        work_items.append("摘心")
-    if work_side_shoot:
-        work_items.append("わき芽取り")
-    if work_fertilizer:
-        work_items.append("追肥")
-    if work_support:
-        work_items.append("支柱立て")
-    if work_pollination:
-        work_items.append("受粉")
-    if work_harvest:
-        work_items.append("収穫")
-    if work_other and other_work_text.strip():
-        work_items.append(other_work_text.strip())
-    elif work_other:
-        work_items.append("その他")
-
-    st.markdown('<div class="observe-divider"></div>', unsafe_allow_html=True)
-
-    st.markdown(
-        """
-        <div class="observe-section-title">
-            <span class="observe-step-inline">3</span>
-            <span> 全体写真をアップロードしよう</span>
-        </div>
-        <div class="observe-help-line">植物全体が入る写真を1枚アップロードしてください</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    fruit_visible = st.radio(
-        "今回の写真にトマトの実が写っていますか？",
-        ["写っていない", "写っている"],
-        horizontal=True,
-        help="実が写っていないときは収穫の進み具合を判定しません。",
-    ) == "写っている"
-
-    # 実の初確認日が分かる場合だけ、経過日数を収穫進行度に加える。
-    known_fruit_date = st.checkbox(
-        "実を初めて確認した日が分かる", key="known_first_fruit_date", disabled=not fruit_visible
-    ) if fruit_visible else False
-    first_fruit_date = None
-    if known_fruit_date:
-        first_fruit_date = st.date_input(
-            "実を初めて確認した日",
-            value=date.today(),
-            min_value=(st.session_state.planting_date if st.session_state.planting_date_known else None),
-            max_value=date.today(),
-            key="first_fruit_date_value",
-        )
-    st.caption("過去の観察記録（実の確認から収穫まで約43日）を目安に使用します。実の確認日が不明なら入力不要です。")
-
-    photo_col, upload_col = st.columns(2, gap="large")
-
-    with photo_col:
-        show_sample_image(
-            "sample_whole_image.png",
-            "全体写真の例",
-        )
-
-    with upload_col:
-        whole_file = st.file_uploader(
-            "全体写真をアップロード",
-            type=SUPPORTED_UPLOAD_TYPES,
-            key="diagnosis_whole",
-            label_visibility="collapsed",
-        )
-
+    st.markdown('<div class="diagnosis-new-section">① 植え付け日</div>', unsafe_allow_html=True)
+    known = st.checkbox("植え付け日が分かる", value=st.session_state.planting_date_known,
+                        key="diagnosis_planting_known")
+    st.session_state.planting_date_known = known
+    if known:
+        st.session_state.planting_date = st.date_input(
+            "植え付け日", value=min(st.session_state.planting_date, date.today()),
+            max_value=date.today(), key="diagnosis_planting_date")
 
     st.divider()
+    st.markdown('<div class="diagnosis-new-section">② 写真をアップロード</div>'
+                '<div class="diagnosis-new-help">ミニトマトの全体が写る写真を1枚選んでください。</div>',
+                unsafe_allow_html=True)
+    whole_file = st.file_uploader(
+        "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
+        key="diagnosis_whole", label_visibility="collapsed")
+    if whole_file is not None:
+        try:
+            st.image(validated_upload(whole_file), caption="選択した写真", width=200)
+        except ValueError as exc:
+            st.warning(str(exc))
+    st.caption("JPG・PNG・HEIC／最大10MB")
+    fruit_visible = st.radio(
+        "写真に実が写っていますか？", ["写っている", "写っていない"],
+        index=1, horizontal=True,
+        help="『写っていない』場合は実の成熟度を診断しません。") == "写っている"
+
+    # 実の初確認日は入力しないため、収穫進行度はAIの成熟段階のみを使用。
+    first_fruit_date = None
+    # 従来の履歴項目は互換性のため残し、未入力として保存する。
+    watered_today = "未入力"
+    work_items = []
 
     missing_models = [key for key in MODEL_NAMES if not (MODEL_DIR / key / "keras_model.h5").is_file() or not (MODEL_DIR / key / "labels.txt").is_file()]
     if missing_models:
         st.error("AI診断用の学習済みモデルが未配置です。管理者にお問い合わせください。写真や記録は送信されません。")
-    st.caption("対応形式：JPEG・PNG・HEIC／最大10MB。AIの判定は参考情報であり、病気や収穫時期を保証するものではありません。")
+    st.caption("AIの判定は参考情報です。実際の植物の状態も確認してください。")
 
     if st.button("診断する", use_container_width=True, disabled=bool(missing_models)):
         if whole_file is None:
@@ -2655,10 +2539,7 @@ elif st.session_state.page == "diagnosis_upload":
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
 
-    if not can_save_history():
-        back_link("設定画面に戻る", "select_user")
-    else:
-        back_link("前のページに戻る", "home")
+    back_link("ホームに戻る", "home")
 
 
 # =========================================================
