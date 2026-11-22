@@ -2311,44 +2311,68 @@ elif st.session_state.page == "home":
     st.markdown(
         """
         <style>
-        /* ホーム画面に限り、余白を抑えて視線移動を短くする */
+        /* ホーム画面：読みやすい余白を確保。ほかの画面は変更しない */
         div[data-testid="stMainBlockContainer"] {
             max-width: 950px !important;
-            padding-top: 0.2rem !important;
-            padding-bottom: 1rem !important;
+            padding-top: 0.35rem !important;
+            padding-bottom: 1.25rem !important;
         }
-        div[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlock"] {
-            gap: 0.55rem;
+        /* カード外側は適度にコンパクトに */
+        div[data-testid="stMainBlockContainer"] > div > div[data-testid="stVerticalBlock"] {
+            gap: 0.9rem !important;
         }
-        div[data-testid="stMainBlockContainer"] [data-testid="stVerticalBlockBorderWrapper"] {
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.compact-home-card-title) {
             border-radius: 14px !important;
+            padding: 0.4rem 0.2rem !important;
+        }
+        /* 各カード内の要素は重ならないよう縦間隔を確保 */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.compact-home-card-title)
+        [data-testid="stVerticalBlock"] {
+            gap: 0.9rem !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.compact-home-card-title)
+        [data-testid="stElementContainer"] {
+            min-height: 0;
         }
         .compact-home-heading {
             font-size: 22px; font-weight: 850; color: #184c32;
-            margin: 4px 0 1px; line-height: 1.3;
+            margin: 10px 0 3px; line-height: 1.4;
         }
         .compact-home-sub {
-            color: #5d7165; font-size: 13px; line-height: 1.4;
-            margin: 0 0 3px;
+            color: #5d7165; font-size: 14px; line-height: 1.55;
+            margin: 0 0 8px;
         }
         .compact-home-card-title {
             font-size: 19px; font-weight: 850; color: #153e2d;
-            margin: 0 0 4px;
+            line-height: 1.45; margin-bottom: 8px;
         }
         .compact-home-card-desc {
-            font-size: 13px; color: #52645a; line-height: 1.45;
-            min-height: 19px; margin: 0;
+            font-size: 14px; color: #52645a; line-height: 1.6;
+            margin-bottom: 3px;
         }
+        /* ボタンは押しやすい高さを維持。強調色は診断だけ */
         div[data-testid="stMainBlockContainer"] .stButton > button,
         div[data-testid="stMainBlockContainer"] .stLinkButton > a {
-            min-height: 39px !important; font-size: 14px !important;
-            font-weight: 800 !important; box-shadow: none !important;
+            min-height: 44px !important;
+            font-size: 14px !important;
+            font-weight: 800 !important;
+            box-shadow: none !important;
             border-radius: 10px !important;
         }
+        div[data-testid="stMainBlockContainer"] .stButton > button[kind="secondary"]:not(:disabled) {
+            background: #fff !important;
+            color: #207d43 !important;
+            border: 1px solid #91c7a0 !important;
+        }
+        div[data-testid="stMainBlockContainer"] .stButton > button:disabled {
+            background: #f0f2f0 !important;
+            color: #818b85 !important;
+            border: 1px solid #e0e5e1 !important;
+        }
         @media (max-width: 640px) {
-            .compact-home-heading {font-size: 19px;}
-            .compact-home-card-title {font-size: 17px;}
-            .compact-home-sub,.compact-home-card-desc {font-size: 12px;}
+            .compact-home-heading {font-size: 20px;}
+            .compact-home-card-title {font-size: 18px;}
+            .compact-home-sub,.compact-home-card-desc {font-size: 13px;}
         }
         </style>
         <div class="compact-home-heading">作物を診断する</div>
