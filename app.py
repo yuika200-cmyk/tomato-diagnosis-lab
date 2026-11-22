@@ -1691,7 +1691,7 @@ with header_account:
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
-if st.session_state.page not in ("home", "diagnosis_upload"):
+if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result"):
     # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
@@ -2526,6 +2526,41 @@ elif st.session_state.page == "diagnosis_upload":
         line-height: 1.2 !important;
         white-space: nowrap !important;
       }
+      /* 写真選択ボタン：標準ラベルの幅に左右されず、表示文字を厳密に中央へ。 */
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button {
+        position: relative !important;
+        display: block !important;
+        width: 170px !important;
+        height: 44px !important;
+        min-width: 170px !important;
+        max-width: 170px !important;
+        margin-inline: auto !important;
+        padding: 0 !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        text-align: center !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button > * {
+        visibility: hidden !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button::after {
+        content: "写真を選ぶ" !important;
+        display: block !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: max-content !important;
+        font-size: 15px !important;
+        line-height: 1.2 !important;
+        font-weight: 800 !important;
+        color: #2f8f47 !important;
+        white-space: nowrap !important;
+        pointer-events: none !important;
+      }
       /* 選択後の「写真を変更する」は控えめな灰色の文字ボタンに。 */
       div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
       .st-key-diagnosis_change_photo button {
@@ -2721,6 +2756,7 @@ elif st.session_state.page == "diagnosis_upload":
                         record[f"{key}_model_score"] = ""
                 st.session_state.previous_record = load_last_history()
                 st.session_state.diagnosis_record = record
+                st.session_state.pop("diagnosis_observation_memo", None)
                 st.session_state.diagnosis_photo_bytes = None
                 if can_save_history():
                     picture = validated_upload(whole_file)
@@ -2742,102 +2778,136 @@ elif st.session_state.page == "diagnosis_upload":
 # =========================================================
 elif st.session_state.page == "diagnosis_result":
     record = st.session_state.diagnosis_record
-
-    # 結果画面を開いたら一番上に戻す
-    force_scroll_top()
-    st.session_state.force_scroll_top = False
+    if st.session_state.get("force_scroll_top", False):
+        force_scroll_top()
+        st.session_state.force_scroll_top = False
 
     if record is None:
         st.warning("まだ診断記録がありません。")
-        back_link("前のページに戻る", "home")
+        back_link("ホームに戻る", "home")
         st.stop()
 
-    st.markdown('<div class="result-page-title">診断結果 <span>🌿</span></div>', unsafe_allow_html=True)
+    # この画面にだけ適用するCSS。既存のホーム・写真アップロード画面は変更しない。
+    st.markdown("""
+    <style>
+      .result-v2-heading {font-size:28px;font-weight:900;color:#153e2d;margin:0 0 8px;}
+      .result-v2-date {color:#65746c;font-size:13px;font-weight:600;}
+      .result-v2-day {font-size:14px;color:#315b43;margin:2px 0 8px;}
+      .result-v2-section {border:1px solid #dce8de;border-radius:15px;padding:15px 19px;
+        background:rgba(255,255,255,.95);margin:8px 0 13px;}
+      .result-v2-section-title {font-size:19px;font-weight:900;color:#153e2d;margin-bottom:10px;}
+      .result-v2-item {display:grid;grid-template-columns:92px minmax(85px,140px) 1fr;
+        align-items:center;gap:13px;padding:12px 0;border-bottom:1px dashed #dce6df;}
+      .result-v2-item:last-child {border-bottom:0;}
+      .result-v2-name {font-weight:850;color:#173e2c;}
+      .result-v2-status {font-weight:850;color:#216d42;overflow-wrap:anywhere;}
+      .result-v2-comment {font-size:14px;color:#3c5246;line-height:1.5;overflow-wrap:anywhere;}
+      .result-v2-advice {border:1px solid #9dd1ae;border-radius:15px;padding:17px 19px;
+        background:white;margin:10px 0 5px;}
+      .result-v2-advice-title {font-size:21px;font-weight:900;color:#14663b;margin-bottom:12px;}
+      .result-v2-advice-content {font-size:16px;font-weight:700;color:#213d2d;line-height:1.8;
+        background:#f0f8f1;border-radius:10px;padding:14px 16px;white-space:pre-wrap;}
+      .result-v2-note {font-size:12px;color:#66746b;line-height:1.6;margin:8px 0 12px;}
+      .result-v2-memo-title {font-size:19px;font-weight:900;color:#173e2c;margin-top:4px;}
+      .result-v2-memo-help {font-size:13px;color:#65746c;margin:0 0 6px;}
+      .result-v2-back {text-align:center;margin:13px 0 0;}
+      .result-v2-back a {font-size:13px;color:#758079;text-decoration:none;}
+      .result-v2-back a:hover {text-decoration:underline;color:#526158;}
+      @media(max-width:680px) {
+        .result-v2-item {grid-template-columns:68px 1fr;gap:4px 10px;padding:10px 0;}
+        .result-v2-comment {grid-column:2;}
+        .result-v2-section {padding:12px 14px;}
+        .result-v2-advice {padding:13px 14px;}
+      }
+    </style>
+    """, unsafe_allow_html=True)
 
-    days_col, info_col = st.columns([1, 1.75], gap="large")
-    days_text = f"{record['days_grown']}日目" if isinstance(record.get("days_grown"), int) else "不明"
-    with days_col:
+    st.markdown(
+        '<div class="result-v2-heading">診断結果</div>'
+        f'<div class="result-v2-date">記録日：{date.today().strftime("%Y/%m/%d")}</div>',
+        unsafe_allow_html=True,
+    )
+    if isinstance(record.get("days_grown"), int):
         st.markdown(
-            f'<div class="result-summary-card"><div class="days-card-inner">'
-            f'<div class="days-icon">🌱</div><div><div class="days-small">育て始めて</div>'
-            f'<div class="days-big">{days_text}</div></div></div></div>',
+            f'<div class="result-v2-day">🌱 育て始めて <b>{record["days_grown"]}日目</b></div>',
             unsafe_allow_html=True,
         )
-    with info_col:
-        fruit_label = record.get("fruit_model_label", "")
-        harvest_stage, harvest_note = harvest_guidance(fruit_label)
-        percent = recorded_harvest_percent(record)
-        percent_width = percent if percent is not None else 0
-        st.markdown(
-            '<div class="result-summary-card harvest-card"><div class="harvest-card-inner">'
-            '<div class="harvest-head"><div class="harvest-title">🍅 収穫の進み具合（目安）</div>'
-            f'<div class="harvest-percent">{recorded_harvest_text(record)}</div></div>'
-            '<div class="harvest-bar">'
-            f'<div class="harvest-fill" style="width:{percent_width}%;"></div></div>'
-            f'<div class="harvest-note">{escape(harvest_stage)}：{escape(harvest_note)}<br>{escape(record.get("harvest_basis", ""))}</div>'
-            '</div></div>',
-            unsafe_allow_html=True,
-        )
 
-    result_rows = []
-    for key, icon in [("whole", "🌱"), ("leaf", "🍃"), ("fruit", "🍅")]:
-        model_label = record.get(f"{key}_model_label", "")
-        if model_label:
-            status = escape(model_label)
-            comment = escape(model_comment(key, model_label))
+    # 「収穫の進み具合」は結果画面には表示しない。実の判定結果は残す。
+    rows = []
+    for key, name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
+        label = record.get(f"{key}_model_label", "")
+        if label == "実なし（未診断）":
+            status = "判定なし"
+            comment = "写真に実が写っていないため、診断していません。"
+        elif label:
+            status = label
+            comment = model_comment(key, label)
         else:
             status = "記録なし"
-            comment = "この項目の診断結果はありません。"
-        result_rows.append(
-            '<div class="today-row">'
-            f'<div class="today-icon">{icon}</div>'
-            f'<div class="today-label">{MODEL_NAMES[key]}</div>'
-            f'<div class="today-status neutral">{status}</div>'
-            f'<div class="today-comment">{comment}</div>'
+            comment = "診断結果がありません。"
+        rows.append(
+            '<div class="result-v2-item">'
+            f'<div class="result-v2-name">{escape(name)}</div>'
+            f'<div class="result-v2-status">{escape(status)}</div>'
+            f'<div class="result-v2-comment">{escape(comment)}</div>'
             '</div>'
         )
-    advice = escape(record.get("model_advice", ""))
-    today_html = (
-        '<div class="today-card"><div class="today-title">🌿 今日のようす</div>'
-        '<div class="today-table">' + "".join(result_rows) + '</div>'
-        '<div class="today-advice">'
-        '<div class="today-advice-title">💡 アドバイス</div>'
-        f'<div class="today-advice-text">{advice}</div></div></div>'
+    st.markdown(
+        '<div class="result-v2-section"><div class="result-v2-section-title">今日のようす</div>'
+        + ''.join(rows) + '</div>', unsafe_allow_html=True,
     )
-    st.markdown(today_html, unsafe_allow_html=True)
 
-    st.markdown('<div class="result-action-row">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="result-v2-advice"><div class="result-v2-advice-title">💡 今日のアドバイス</div>'
+        f'<div class="result-v2-advice-content">{escape(record.get("model_advice", "") or "アドバイスはありません。")}</div>'
+        '<div class="result-v2-note">ⓘ AIの診断結果は参考情報です。実際の作物の状態や栽培記録も確認してください。</div>'
+        '</div>', unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="result-v2-memo-title">📝 観察メモ</div>', unsafe_allow_html=True)
+    st.markdown('<div class="result-v2-memo-help">気づいたことや、実際に観察したようすを記録しましょう。</div>', unsafe_allow_html=True)
+    if "diagnosis_observation_memo" not in st.session_state:
+        st.session_state.diagnosis_observation_memo = record.get("observation_note", "")
+    memo = st.text_area(
+        "観察メモ", key="diagnosis_observation_memo", height=94,
+        placeholder="例：下の葉が黄色くなっていた。",
+        label_visibility="collapsed", max_chars=2000,
+    )
+    # 保存ボタンを押す前に、クラウド保存へ渡すレコードにメモを反映する。
+    record["observation_note"] = memo
 
     if can_save_history():
-        if st.session_state.get('diagnosis_saved', False):
-            st.success('この診断を成長記録に保存しました。')
-        elif st.button('💾 この診断を保存する', use_container_width=True):
+        if st.session_state.get("diagnosis_saved", False):
+            st.success("診断結果と観察メモを保存しました。")
+            st.caption("保存後にメモを変更した場合、その変更は保存済みの記録には反映されません。")
+        elif st.button("💾 診断結果とメモを保存する", use_container_width=True, key="result_save_with_memo"):
             try:
-                history_cloud.save(record, st.session_state.get('diagnosis_photo_bytes'))
+                history_cloud.save(record, st.session_state.get("diagnosis_photo_bytes"))
                 st.session_state.diagnosis_saved = True
-                st.success('保存できました！')
+                st.success("保存できました！")
             except Exception:
-                LOGGER.exception('Cloud history save failed')
-                st.error('保存できませんでした。通信状況を確認して再度お試しください。')
+                LOGGER.exception("Cloud history save failed")
+                st.error("保存できませんでした。通信状況を確認して再度お試しください。")
         col_again, col_history = st.columns(2)
         with col_again:
-            if st.button('↻ もう一度診断する', use_container_width=True):
-                st.session_state.page = 'diagnosis_upload'
+            if st.button("↻ もう一度診断する", use_container_width=True, key="result_retry"):
+                st.session_state.pop("diagnosis_observation_memo", None)
+                st.session_state.page = "diagnosis_upload"
                 st.rerun()
         with col_history:
-            if st.button('🌱 成長の記録', use_container_width=True):
-                st.session_state.page = 'history_calendar'
+            if st.button("🌱 成長の記録", use_container_width=True, key="result_history"):
+                st.session_state.page = "history_calendar"
                 st.rerun()
     else:
-        st.caption('今回の結果は保存されていません。保存するには右上の「ログイン・登録」でログインしてから診断してください。')
-        if st.button('↻ もう一度診断する', use_container_width=True):
-            st.session_state.page = 'diagnosis_upload'
+        st.caption("メモの入力はできますが、保存するには右上の「ログイン・登録」からログインしてください。")
+        if st.button("↻ もう一度診断する", use_container_width=True, key="result_retry_guest"):
+            st.session_state.pop("diagnosis_observation_memo", None)
+            st.session_state.page = "diagnosis_upload"
             st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('<div class="result-v2-back"><a href="?back_home=1">← ホームに戻る</a></div>', unsafe_allow_html=True)
 
-
-    
 
 # =========================================================
 # ⑤ 成長のきろく：アルバム表示
@@ -2991,8 +3061,7 @@ elif st.session_state.page == "history_detail":
             '<div class="detail-advice-box"><div class="detail-advice-title">💡 アドバイス</div>'
             f'<div class="detail-advice-text">{escape(row.get("model_advice", "") or "この記録にはアドバイスが保存されていません。")}</div></div>'
             '<div class="detail-record-box">'
-            f'<b>📝 観察メモ</b><br>水やり：{escape(row.get("watered_today", "") or "記録なし")}<br>'
-            f'今日の作業：{escape(row.get("work_items", "") or "なし")}</div>',
+            f'<b>📝 観察メモ</b><br>{escape(row.get("observation_note", "") or "メモはありません。")}</div>',
             unsafe_allow_html=True,
         )
 
