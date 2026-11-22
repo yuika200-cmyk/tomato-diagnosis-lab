@@ -1690,7 +1690,7 @@ with header_account:
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
-if st.session_state.page != "home":
+if st.session_state.page not in ("home", "diagnosis_upload"):
     # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
@@ -2468,6 +2468,10 @@ elif st.session_state.page == "diagnosis_upload":
       .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 2px 0 1px; }
       .diagnosis-new-help { color: #596b61; font-size: 13px; margin: 0 0 4px; }
       .diagnosis-photo-label {font-size: 14px;font-weight: 750;color:#173e2c;margin:0 0 5px;}
+      .diagnosis-back-link {text-align:center;margin:8px 0 4px;}
+      .diagnosis-back-link a {font-size:13px;color:#62756a;text-decoration:none;padding:5px 10px;}
+      .diagnosis-back-link a:hover {color:#207644;text-decoration:underline;}
+
       div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title) [data-testid="stFileUploaderDropzone"] {
         min-height: 150px !important;
       }
@@ -2511,15 +2515,10 @@ elif st.session_state.page == "diagnosis_upload":
     st.markdown('<div class="diagnosis-new-section">② 写真をアップロード</div>'
                 '<div class="diagnosis-new-help">ミニトマトの全体が写る写真を1枚選んでください。</div>',
                 unsafe_allow_html=True)
-    # 写真選択後は、お手本と選択写真を同じ大きさで横並び表示する。
-    # 表示用画像だけを調整し、AIに渡す元画像は変更しない。
-    whole_file = st.file_uploader(
-        "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
-        key="diagnosis_whole", label_visibility="collapsed")
-    st.caption("JPG・PNG・HEIC／最大10MB")
-
+    # お手本と写真選択欄／選択済み写真を、同じ幅の左右2列に表示する。
+    # アップロード欄は右側から移動させず、選択後はその場所に写真を表示する。
     def photo_preview_canvas(image: Image.Image) -> Image.Image:
-        """画像の縦横比を保ち、共通サイズの枠に余白付きで収める。"""
+        """元画像に触れず、プレビューだけを共通の横長キャンバスに収める。"""
         canvas_size = (640, 360)
         preview = ImageOps.contain(image.convert("RGB"), canvas_size, method=Image.Resampling.LANCZOS)
         canvas = Image.new("RGB", canvas_size, (248, 251, 249))
@@ -2527,24 +2526,34 @@ elif st.session_state.page == "diagnosis_upload":
                                (canvas_size[1] - preview.height) // 2))
         return canvas
 
-    sample_col, selected_col = st.columns(2, gap="medium")
+    sample_col, upload_col = st.columns(2, gap="medium")
     with sample_col:
         st.markdown('<div class="diagnosis-photo-label">全体写真のお手本</div>', unsafe_allow_html=True)
         sample_path = APP_DIR / "sample_whole_image.png"
         if sample_path.is_file():
-            with Image.open(sample_path) as sample_source:
-                st.image(photo_preview_canvas(sample_source), width="stretch")
-        else:
-            st.info("お手本写真が見つかりません。app.pyと同じフォルダに sample_whole_image.png を配置してください。")
-    with selected_col:
-        st.markdown('<div class="diagnosis-photo-label">選択した写真</div>', unsafe_allow_html=True)
-        if whole_file is not None:
             try:
-                st.image(photo_preview_canvas(validated_upload(whole_file)), width="stretch")
-            except ValueError as exc:
-                st.warning(str(exc))
+                with Image.open(sample_path) as sample_source:
+                    st.image(photo_preview_canvas(sample_source), width="stretch")
+            except (OSError, ValueError):
+                st.warning("お手本写真を読み込めませんでした。")
         else:
-            st.info("写真を選ぶと、ここにお手本と同じ大きさで表示されます。")
+            st.warning("お手本写真が見つかりません。sample_whole_image.png を app.py と同じフォルダに置いてください。")
+
+    with upload_col:
+        st.markdown('<div class="diagnosis-photo-label">選択する写真</div>', unsafe_allow_html=True)
+        # 選択前はアップロード枠、選択後は写真をこの右列に表示する。
+        # アップローダーは同一キーを維持することで、診断時の画像を引き継ぐ。
+        uploaded_before = st.session_state.get("diagnosis_whole") is not None
+        if uploaded_before:
+            try:
+                st.image(photo_preview_canvas(validated_upload(st.session_state["diagnosis_whole"])), width="stretch")
+            except (ValueError, OSError) as exc:
+                st.warning(str(exc))
+        whole_file = st.file_uploader(
+            "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
+            key="diagnosis_whole", label_visibility="collapsed"
+        )
+        st.caption("JPG・PNG・HEIC／最大10MB")
 
     fruit_visible = st.radio(
         "写真に実が写っていますか？", ["写っている", "写っていない"],
@@ -2618,7 +2627,13 @@ elif st.session_state.page == "diagnosis_upload":
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
 
-    # ホームへの導線は画面上部にあるため、下部には重複表示しない。
+    # ホームへ戻る操作は診断ボタンより下に、小さく配置する。
+    _, back_col, _ = st.columns([4, 2, 4])
+    with back_col:
+        if st.button("← ホームに戻る", key="diagnosis_back_bottom", use_container_width=True):
+            st.session_state.page = "home"
+            st.session_state.force_scroll_top = True
+            st.rerun()
 
 
 # =========================================================
