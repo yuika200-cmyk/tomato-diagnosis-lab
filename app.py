@@ -1694,11 +1694,18 @@ if st.session_state.page != "home":
     # 戻る操作は小さなリンク風ボタンとして右側に配置
     st.markdown("""
     <style>
-      .st-key-global_home_navigation {text-align:right;}
+      /* 戻るボタンだけ右端へ。ほかのボタンには影響させない */
+      .st-key-global_home_navigation {
+          display:flex !important;
+          justify-content:flex-end !important;
+          width:100% !important;
+          margin:0 !important;
+          padding:0 !important;
+      }
       .st-key-global_home_navigation button {
-          width:auto !important; min-height:30px !important;
-          height:32px !important; padding:3px 10px !important;
-          font-size:12px !important; font-weight:600 !important;
+          width:auto !important; min-height:26px !important;
+          height:28px !important; padding:2px 8px !important;
+          font-size:11px !important; font-weight:600 !important;
           background:transparent !important; color:#52645a !important;
           border:1px solid #d7e2da !important;
           border-radius:8px !important; box-shadow:none !important;
@@ -2455,7 +2462,7 @@ elif st.session_state.page == "diagnosis_upload":
       > div > div[data-testid="stVerticalBlock"] {
         gap: 0.4rem !important;
       }
-      .diagnosis-header-rule {height:1px;background:#dce6df;margin:2px 0 5px;}
+      .diagnosis-header-rule {height:1px;background:#dce6df;margin:0 0 2px;}
       .diagnosis-new-title { font-size: 27px; font-weight: 900; color: #153e2d; margin: 0 0 3px; }
       .diagnosis-new-meta { color: #52645a; font-size: 13px; margin-bottom: 5px; }
       .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 2px 0 1px; }
