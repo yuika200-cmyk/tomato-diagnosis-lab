@@ -2439,20 +2439,30 @@ elif st.session_state.page == "diagnosis_upload":
     plant_type = st.session_state.plant_type
     today_text = date.today().strftime("%Y/%m/%d")
 
-    # この画面にだけ適用する余白設定。既存の診断結果画面は変えない。
+    # 診断画面だけを程よくコンパクトにする（結果画面やホームは変更しない）。
     st.markdown("""
     <style>
       div[data-testid="stMainBlockContainer"] { max-width: 850px !important; }
-      .diagnosis-new-title { font-size: 29px; font-weight: 900; color: #153e2d; margin: 0 0 6px; }
-      .diagnosis-new-meta { color: #52645a; font-size: 14px; margin-bottom: 15px; }
-      .diagnosis-new-section { font-size: 21px; font-weight: 850; color: #173e2c; margin: 13px 0 9px; }
-      .diagnosis-new-help { color: #596b61; font-size: 14px; margin: 0 0 10px; }
-      /* 写真の選択欄が不必要に縦長にならないよう調整 */
-      [data-testid="stFileUploader"] section,
-      [data-testid="stFileUploaderDropzone"] { min-height: 145px !important; }
+      .diagnosis-new-title { font-size: 27px; font-weight: 900; color: #153e2d; margin: 0 0 3px; }
+      .diagnosis-new-meta { color: #52645a; font-size: 13px; margin-bottom: 5px; }
+      .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 5px 0 3px; }
+      .diagnosis-new-help { color: #596b61; font-size: 13px; margin: 0 0 4px; }
+      /* この画面では縦の基本間隔を少し詰める。重なりが出ない値にする。 */
+      div[data-testid="stMainBlockContainer"] > div > div[data-testid="stVerticalBlock"] {
+        gap: 0.65rem !important;
+      }
+      div[data-testid="stMainBlockContainer"] [data-testid="stDivider"] { margin: 0.15rem 0 !important; }
+      div[data-testid="stFileUploader"] { margin-top: 0 !important; }
+      div[data-testid="stFileUploader"] section,
+      div[data-testid="stFileUploaderDropzone"] {
+        min-height: 125px !important;
+        padding: 12px !important;
+      }
+      /* 診断するボタンは操作しやすい高さを確保。 */
+      div[data-testid="stMainBlockContainer"] .stButton button { min-height: 44px; }
       @media (max-width: 640px) {
-        .diagnosis-new-title {font-size: 25px;}
-        .diagnosis-new-section {font-size: 19px;}
+        .diagnosis-new-title { font-size: 24px; }
+        .diagnosis-new-section { font-size: 18px; }
       }
     </style>
     """, unsafe_allow_html=True)
@@ -2477,7 +2487,10 @@ elif st.session_state.page == "diagnosis_upload":
     # お手本写真とアップロード欄を並べて、撮影の参考にできるようにする。
     sample_col, upload_col = st.columns(2, gap="medium")
     with sample_col:
-        show_sample_image("sample_whole_image.png", "全体写真のお手本")
+        # 画像は小さめに表示し、診断ボタンが画面下へ押し出されないようにする。
+        sample_path = APP_DIR / "sample_whole_image.png"
+        if sample_path.exists():
+            st.image(str(sample_path), caption="全体写真のお手本", width=220)
     with upload_col:
         whole_file = st.file_uploader(
             "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
@@ -2560,7 +2573,7 @@ elif st.session_state.page == "diagnosis_upload":
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
 
-    back_link("ホームに戻る", "home")
+    # ホームへの導線は画面上部にあるため、下部には重複表示しない。
 
 
 # =========================================================
