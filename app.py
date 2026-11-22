@@ -2700,6 +2700,27 @@ elif st.session_state.page == "diagnosis_upload":
         index=1, horizontal=True,
         help="『写っていない』場合は実の成熟度を診断しません。") == "写っている"
 
+    # AIの結果を見る前に自己評価する。入力しなくても診断できる。
+    # 選択肢は現在のAIモデルの分類名と対応させる。
+    st.markdown('<div class="diagnosis-header-rule"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="diagnosis-new-section">③ 自分で観察してみよう（任意）</div>'
+                '<div class="diagnosis-new-help">AIの結果を見る前に、植物の状態を予想してみましょう。分からなければそのままでOKです。</div>',
+                unsafe_allow_html=True)
+    self_options = {
+        "whole": ["未選択", "良好", "葉が重なっている", "誘引必要"],
+        "leaf": ["未選択", "良好", "白い斑点が見られる", "葉が黄色い", "葉が淡い黄緑色",
+                 "しおれている", "葉が濃い緑色", "虫食い", "要注意"],
+        "fruit": ["未選択", "成長途中", "成長中", "成熟中", "収穫間近", "成長段階"],
+    }
+    col_whole, col_leaf, col_fruit = st.columns(3, gap="small")
+    with col_whole:
+        self_whole = st.selectbox("株全体", self_options["whole"], key="self_eval_whole")
+    with col_leaf:
+        self_leaf = st.selectbox("葉", self_options["leaf"], key="self_eval_leaf")
+    with col_fruit:
+        self_fruit = (st.selectbox("実", self_options["fruit"], key="self_eval_fruit")
+                      if fruit_visible else "未選択")
+
     # 実の初確認日は入力しないため、収穫進行度はAIの成熟段階のみを使用。
     first_fruit_date = None
     # 従来の履歴項目は互換性のため残し、未入力として保存する。
@@ -2754,6 +2775,13 @@ elif st.session_state.page == "diagnosis_upload":
                     else:
                         record[f"{key}_model_label"] = "実なし（未診断）"
                         record[f"{key}_model_score"] = ""
+                # 履歴DBの列を増やさず、今回の自己評価を画面表示用に保持する。
+                # 保存時には既存の observation_note に読みやすい文章で記録する。
+                st.session_state.diagnosis_self_evaluation = {
+                    "whole": self_whole if self_whole != "未選択" else "",
+                    "leaf": self_leaf if self_leaf != "未選択" else "",
+                    "fruit": self_fruit if self_fruit != "未選択" else "",
+                }
                 st.session_state.previous_record = load_last_history()
                 st.session_state.diagnosis_record = record
                 st.session_state.pop("diagnosis_observation_memo", None)
@@ -2790,34 +2818,40 @@ elif st.session_state.page == "diagnosis_result":
     # この画面にだけ適用するCSS。既存のホーム・写真アップロード画面は変更しない。
     st.markdown("""
     <style>
-      .result-v2-heading {font-size:28px;font-weight:900;color:#153e2d;margin:0 0 8px;}
+      .result-v2-heading {font-size:26px;font-weight:900;color:#153e2d;margin:0 0 4px;line-height:1.3;}
       .result-v2-date {color:#65746c;font-size:13px;font-weight:600;}
-      .result-v2-day {font-size:14px;color:#315b43;margin:2px 0 8px;}
-      .result-v2-section {border:1px solid #dce8de;border-radius:15px;padding:15px 19px;
-        background:rgba(255,255,255,.95);margin:8px 0 13px;}
-      .result-v2-section-title {font-size:19px;font-weight:900;color:#153e2d;margin-bottom:10px;}
+      .result-v2-day {font-size:14px;color:#315b43;margin:2px 0 4px;}
+      .result-v2-section {border:1px solid #dce8de;border-radius:15px;padding:12px 16px;
+        background:rgba(255,255,255,.95);margin:6px 0 8px;}
+      .result-v2-section-title {font-size:18px;font-weight:900;color:#153e2d;margin-bottom:5px;}
       .result-v2-item {display:grid;grid-template-columns:92px minmax(85px,140px) 1fr;
-        align-items:center;gap:13px;padding:12px 0;border-bottom:1px dashed #dce6df;}
+        align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed #dce6df;}
       .result-v2-item:last-child {border-bottom:0;}
       .result-v2-name {font-weight:850;color:#173e2c;}
       .result-v2-status {font-weight:850;color:#216d42;overflow-wrap:anywhere;}
-      .result-v2-comment {font-size:14px;color:#3c5246;line-height:1.5;overflow-wrap:anywhere;}
-      .result-v2-advice {border:1px solid #9dd1ae;border-radius:15px;padding:17px 19px;
-        background:white;margin:10px 0 5px;}
-      .result-v2-advice-title {font-size:21px;font-weight:900;color:#14663b;margin-bottom:12px;}
-      .result-v2-advice-content {font-size:16px;font-weight:700;color:#213d2d;line-height:1.8;
-        background:#f0f8f1;border-radius:10px;padding:14px 16px;white-space:pre-wrap;}
-      .result-v2-note {font-size:12px;color:#66746b;line-height:1.6;margin:8px 0 12px;}
-      .result-v2-memo-title {font-size:19px;font-weight:900;color:#173e2c;margin-top:4px;}
-      .result-v2-memo-help {font-size:13px;color:#65746c;margin:0 0 6px;}
-      .result-v2-back {text-align:center;margin:13px 0 0;}
+      .result-v2-comment {font-size:14px;color:#3c5246;line-height:1.4;overflow-wrap:anywhere;}
+      .result-v2-advice {border:1px solid #9dd1ae;border-radius:15px;padding:12px 16px;
+        background:white;margin:7px 0 4px;}
+      .result-v2-advice-title {font-size:20px;font-weight:900;color:#14663b;margin-bottom:7px;}
+      .result-v2-advice-content {font-size:16px;font-weight:700;color:#213d2d;line-height:1.6;
+        background:#f0f8f1;border-radius:10px;padding:10px 13px;white-space:pre-wrap;}
+      .result-v2-note {font-size:12px;color:#66746b;line-height:1.5;margin:7px 0 3px;}
+      .result-v2-memo-title {font-size:18px;font-weight:900;color:#173e2c;margin-top:2px;}
+      .result-v2-memo-help {font-size:13px;color:#65746c;margin:0 0 4px;}
+      .result-v2-compare {border:1px solid #dce8de;border-radius:14px;padding:12px 16px;background:#fbfdfb;margin:7px 0;}
+      .result-v2-compare-title {font-size:17px;font-weight:900;color:#173e2c;margin-bottom:7px;}
+      .result-v2-compare-row {display:grid;grid-template-columns:75px 1fr 1fr;gap:8px;
+        padding:7px 0;border-top:1px dashed #dce6df;font-size:14px;align-items:center;}
+      .result-v2-compare-head {font-size:12px;font-weight:800;color:#65746c;}
+      .result-v2-compare-note {font-size:12px;color:#66746b;margin-top:7px;}
+      .result-v2-back {text-align:center;margin:7px 0 0;}
       .result-v2-back a {font-size:13px;color:#758079;text-decoration:none;}
       .result-v2-back a:hover {text-decoration:underline;color:#526158;}
       @media(max-width:680px) {
-        .result-v2-item {grid-template-columns:68px 1fr;gap:4px 10px;padding:10px 0;}
+        .result-v2-item {grid-template-columns:68px 1fr;gap:3px 9px;padding:7px 0;}
         .result-v2-comment {grid-column:2;}
-        .result-v2-section {padding:12px 14px;}
-        .result-v2-advice {padding:13px 14px;}
+        .result-v2-section {padding:10px 12px;}
+        .result-v2-advice {padding:11px 12px;}
       }
     </style>
     """, unsafe_allow_html=True)
@@ -2837,10 +2871,10 @@ elif st.session_state.page == "diagnosis_result":
     rows = []
     for key, name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
         label = record.get(f"{key}_model_label", "")
-        if label == "実なし（未診断）":
-            status = "判定なし"
-            comment = "写真に実が写っていないため、診断していません。"
-        elif label:
+        # 写真に実がないときは、実の診断行を丸ごと表示しない。
+        if key == "fruit" and label == "実なし（未診断）":
+            continue
+        if label:
             status = label
             comment = model_comment(key, label)
         else:
@@ -2858,6 +2892,33 @@ elif st.session_state.page == "diagnosis_result":
         + ''.join(rows) + '</div>', unsafe_allow_html=True,
     )
 
+    # 自分の評価とAIの判定を比較する。未入力の項目は比較しない。
+    self_eval = st.session_state.get("diagnosis_self_evaluation", {})
+    compared_rows = []
+    for key, label_name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
+        own = self_eval.get(key, "")
+        ai_label = record.get(f"{key}_model_label", "")
+        if own and ai_label and ai_label != "実なし（未診断）":
+            ai_normalized = _normalize_advice_label(key, ai_label)
+            matches = own == ai_normalized
+            compared_rows.append(
+                '<div class="result-v2-compare-row">'
+                f'<b>{escape(label_name)}</b>'
+                f'<span>{escape(own)}</span>'
+                f'<span>{escape(ai_label)}　{("一致" if matches else "違いあり")}</span>'
+                '</div>'
+            )
+    if compared_rows:
+        st.markdown(
+            '<div class="result-v2-compare">'
+            '<div class="result-v2-compare-title">自分の評価とAIを比べる</div>'
+            '<div class="result-v2-compare-row result-v2-compare-head">'
+            '<span>項目</span><span>自分の評価</span><span>AIの判定</span></div>'
+            + ''.join(compared_rows)
+            + '<div class="result-v2-compare-note">一致・不一致は正解・不正解ではありません。実物を観察して確かめましょう。</div>'
+            '</div>', unsafe_allow_html=True,
+        )
+
     st.markdown(
         '<div class="result-v2-advice"><div class="result-v2-advice-title">💡 今日のアドバイス</div>'
         f'<div class="result-v2-advice-content">{escape(record.get("model_advice", "") or "アドバイスはありません。")}</div>'
@@ -2870,12 +2931,19 @@ elif st.session_state.page == "diagnosis_result":
     if "diagnosis_observation_memo" not in st.session_state:
         st.session_state.diagnosis_observation_memo = record.get("observation_note", "")
     memo = st.text_area(
-        "観察メモ", key="diagnosis_observation_memo", height=94,
+        "観察メモ", key="diagnosis_observation_memo", height=76,
         placeholder="例：下の葉が黄色くなっていた。",
         label_visibility="collapsed", max_chars=2000,
     )
     # 保存ボタンを押す前に、クラウド保存へ渡すレコードにメモを反映する。
-    record["observation_note"] = memo
+    # 既存の観察メモ列に自己評価も保存する（DBスキーマ変更不要）。
+    self_eval = st.session_state.get("diagnosis_self_evaluation", {})
+    names = {"whole": "株全体", "leaf": "葉", "fruit": "実"}
+    self_lines = [f"{names[k]}：{self_eval[k]}" for k in ("whole", "leaf", "fruit") if self_eval.get(k)]
+    if self_lines:
+        record["observation_note"] = "【自己評価】\n" + "\n".join(self_lines) + ("\n【観察メモ】\n" + memo if memo else "")
+    else:
+        record["observation_note"] = memo
 
     if can_save_history():
         if st.session_state.get("diagnosis_saved", False):
