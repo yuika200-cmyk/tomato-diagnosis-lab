@@ -2844,6 +2844,27 @@ elif st.session_state.page == "diagnosis_result":
         padding:7px 0;border-top:1px dashed #dce6df;font-size:14px;align-items:center;}
       .result-v2-compare-head {font-size:12px;font-weight:800;color:#65746c;}
       .result-v2-compare-note {font-size:12px;color:#66746b;margin-top:7px;}
+
+      /* 診断結果・自己評価の統合表 */
+      .result-v2-unified-row {display:grid;align-items:start;gap:10px;
+        padding:10px 0;border-bottom:1px dashed #dce6df;font-size:14px;color:#2d493a;}
+      .result-v2-unified-row:last-of-type {border-bottom:none;}
+      .result-v2-unified-row.comparison {grid-template-columns:80px minmax(0,1fr) minmax(0,1.2fr) 74px;}
+      .result-v2-unified-row.simple {grid-template-columns:80px minmax(75px,120px) minmax(0,1fr);align-items:center;}
+      .result-v2-unified-name {font-weight:850;color:#173e2c;}
+      .result-v2-unified-comment {font-size:12px;font-weight:500;color:#66746b;line-height:1.4;margin-top:2px;}
+      .result-v2-unified-head {font-size:12px;font-weight:800;color:#65746c;padding:5px 0;}
+      .result-v2-unified-flag {font-size:12px;font-weight:800;white-space:nowrap;}
+      .result-v2-unified-flag.match {color:#22844e;}
+      .result-v2-unified-flag.diff {color:#aa6b13;}
+      .result-v2-unified-flag.neutral {color:#7b8980;}
+      @media(max-width:680px) {
+        .result-v2-unified-row {gap:5px;font-size:12px;}
+        .result-v2-unified-row.comparison {grid-template-columns:49px minmax(0,1fr) minmax(0,1.1fr) 54px;}
+        .result-v2-unified-row.simple {grid-template-columns:52px minmax(58px,92px) minmax(0,1fr);}
+        .result-v2-unified-head,.result-v2-unified-flag {font-size:10px;}
+        .result-v2-unified-comment {font-size:11px;}
+      }
       .result-v2-back {text-align:center;margin:7px 0 0;}
       .result-v2-back a {font-size:13px;color:#758079;text-decoration:none;}
       .result-v2-back a:hover {text-decoration:underline;color:#526158;}
@@ -2867,57 +2888,68 @@ elif st.session_state.page == "diagnosis_result":
             unsafe_allow_html=True,
         )
 
-    # 「収穫の進み具合」は結果画面には表示しない。実の判定結果は残す。
-    rows = []
+    # 診断結果と自己評価を1つの表に統合する。
+    # 自己評価がなければ従来の「今日のようす」を表示する。
+    self_eval = st.session_state.get("diagnosis_self_evaluation", {}) or {}
+    visible = []
     for key, name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
-        label = record.get(f"{key}_model_label", "")
-        # 写真に実がないときは、実の診断行を丸ごと表示しない。
-        if key == "fruit" and label == "実なし（未診断）":
-            continue
-        if label:
-            status = label
-            comment = model_comment(key, label)
-        else:
-            status = "記録なし"
-            comment = "診断結果がありません。"
-        rows.append(
-            '<div class="result-v2-item">'
-            f'<div class="result-v2-name">{escape(name)}</div>'
-            f'<div class="result-v2-status">{escape(status)}</div>'
-            f'<div class="result-v2-comment">{escape(comment)}</div>'
-            '</div>'
-        )
-    st.markdown(
-        '<div class="result-v2-section"><div class="result-v2-section-title">今日のようす</div>'
-        + ''.join(rows) + '</div>', unsafe_allow_html=True,
-    )
-
-    # 自分の評価とAIの判定を比較する。未入力の項目は比較しない。
-    self_eval = st.session_state.get("diagnosis_self_evaluation", {})
-    compared_rows = []
-    for key, label_name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
-        own = self_eval.get(key, "")
         ai_label = record.get(f"{key}_model_label", "")
-        if own and ai_label and ai_label != "実なし（未診断）":
-            ai_normalized = _normalize_advice_label(key, ai_label)
-            matches = own == ai_normalized
-            compared_rows.append(
-                '<div class="result-v2-compare-row">'
-                f'<b>{escape(label_name)}</b>'
-                f'<span>{escape(own)}</span>'
-                f'<span>{escape(ai_label)}　{("一致" if matches else "違いあり")}</span>'
+        if key == "fruit" and ai_label in ("実なし（未診断）", ""):
+            continue
+        visible.append((key, name, ai_label))
+
+    has_self_eval = any(self_eval.get(key) for key, _, _ in visible)
+    rows = []
+    for key, name, ai_label in visible:
+        ai_text = ai_label or "記録なし"
+        comment = model_comment(key, ai_label) if ai_label else "診断結果がありません。"
+        own = self_eval.get(key, "")
+        if has_self_eval:
+            if own and ai_label:
+                same = own == _normalize_advice_label(key, ai_label)
+                comparison = "一致" if same else "違いあり"
+                comparison_class = "match" if same else "diff"
+            else:
+                comparison = "—"
+                comparison_class = "neutral"
+            rows.append(
+                '<div class="result-v2-unified-row comparison">'
+                f'<div class="result-v2-unified-name">{escape(name)}</div>'
+                f'<div>{escape(own or "—")}</div>'
+                f'<div><span class="result-v2-status">{escape(ai_text)}</span>'
+                f'<div class="result-v2-unified-comment">{escape(comment)}</div></div>'
+                f'<div class="result-v2-unified-flag {comparison_class}">{comparison}</div>'
                 '</div>'
             )
-    if compared_rows:
-        st.markdown(
-            '<div class="result-v2-compare">'
-            '<div class="result-v2-compare-title">自分の評価とAIを比べる</div>'
-            '<div class="result-v2-compare-row result-v2-compare-head">'
-            '<span>項目</span><span>自分の評価</span><span>AIの判定</span></div>'
-            + ''.join(compared_rows)
-            + '<div class="result-v2-compare-note">一致・不一致は正解・不正解ではありません。実物を観察して確かめましょう。</div>'
-            '</div>', unsafe_allow_html=True,
+        else:
+            rows.append(
+                '<div class="result-v2-unified-row simple">'
+                f'<div class="result-v2-unified-name">{escape(name)}</div>'
+                f'<div class="result-v2-status">{escape(ai_text)}</div>'
+                f'<div class="result-v2-unified-comment">{escape(comment)}</div>'
+                '</div>'
+            )
+
+    if has_self_eval:
+        title = "今日のようす・AIとの比較"
+        header = (
+            '<div class="result-v2-unified-row comparison result-v2-unified-head">'
+            '<span>項目</span><span>自分の評価</span><span>AIの判定</span><span>比較</span>'
+            '</div>'
         )
+        note = ('<div class="result-v2-compare-note">'
+                '※ 一致・不一致は正解・不正解を意味しません。実際の作物を観察して確認しましょう。'
+                '</div>')
+    else:
+        title = "今日のようす"
+        header = ''
+        note = ''
+
+    st.markdown(
+        '<div class="result-v2-section">'
+        f'<div class="result-v2-section-title">{title}</div>'
+        + header + ''.join(rows) + note + '</div>', unsafe_allow_html=True,
+    )
 
     st.markdown(
         '<div class="result-v2-advice"><div class="result-v2-advice-title">💡 今日のアドバイス</div>'
