@@ -1691,34 +1691,34 @@ if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
 if st.session_state.page != "home":
-    # 戻る操作は小さなリンク風ボタンとして右側に配置
+    # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
-      /* 戻るボタンだけ右端へ。ほかのボタンには影響させない */
-      .st-key-global_home_navigation {
-          display:flex !important;
-          justify-content:flex-end !important;
-          width:100% !important;
-          margin:0 !important;
-          padding:0 !important;
-      }
       .st-key-global_home_navigation button {
-          width:auto !important; min-height:26px !important;
-          height:28px !important; padding:2px 8px !important;
-          font-size:11px !important; font-weight:600 !important;
-          background:transparent !important; color:#52645a !important;
+          min-height:29px !important;
+          height:29px !important;
+          padding:2px 7px !important;
+          font-size:11px !important;
+          font-weight:600 !important;
+          white-space:nowrap !important;
+          background:transparent !important;
+          color:#52645a !important;
           border:1px solid #d7e2da !important;
-          border-radius:8px !important; box-shadow:none !important;
+          border-radius:8px !important;
+          box-shadow:none !important;
       }
       .st-key-global_home_navigation button:hover {
-          background:#f3f8f4 !important; color:#247a46 !important;
+          background:#f3f8f4 !important;
+          color:#247a46 !important;
       }
     </style>
     """, unsafe_allow_html=True)
-    if st.button("← ホームに戻る", key="global_home_navigation"):
-        st.session_state.page = "home"
-        st.session_state.force_scroll_top = True
-        st.rerun()
+    _, home_nav_column = st.columns([8, 1.6], gap="small", vertical_alignment="center")
+    with home_nav_column:
+        if st.button("← ホームに戻る", key="global_home_navigation", use_container_width=True):
+            st.session_state.page = "home"
+            st.session_state.force_scroll_top = True
+            st.rerun()
 
 if st.session_state.page == "diagnosis_upload":
     st.markdown('<div class="diagnosis-header-rule"></div>', unsafe_allow_html=True)
