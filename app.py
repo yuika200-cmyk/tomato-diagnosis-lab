@@ -2467,6 +2467,11 @@ elif st.session_state.page == "diagnosis_upload":
       .diagnosis-new-meta { color: #52645a; font-size: 13px; margin-bottom: 5px; }
       .diagnosis-new-section { font-size: 19px; font-weight: 850; color: #173e2c; margin: 2px 0 1px; }
       .diagnosis-new-help { color: #596b61; font-size: 13px; margin: 0 0 4px; }
+      .diagnosis-photo-label {font-size: 14px;font-weight: 750;color:#173e2c;margin:0 0 5px;}
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title) [data-testid="stFileUploaderDropzone"] {
+        min-height: 150px !important;
+      }
+
       /* この画面では縦の基本間隔を少し詰める。重なりが出ない値にする。 */
       div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
       [data-testid="stCheckbox"] {margin: 0 !important;}
@@ -2506,25 +2511,41 @@ elif st.session_state.page == "diagnosis_upload":
     st.markdown('<div class="diagnosis-new-section">② 写真をアップロード</div>'
                 '<div class="diagnosis-new-help">ミニトマトの全体が写る写真を1枚選んでください。</div>',
                 unsafe_allow_html=True)
-    # お手本写真とアップロード欄を並べて、撮影の参考にできるようにする。
-    sample_col, upload_col = st.columns(2, gap="medium")
+    # 写真選択後は、お手本と選択写真を同じ大きさで横並び表示する。
+    # 表示用画像だけを調整し、AIに渡す元画像は変更しない。
+    whole_file = st.file_uploader(
+        "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
+        key="diagnosis_whole", label_visibility="collapsed")
+    st.caption("JPG・PNG・HEIC／最大10MB")
+
+    def photo_preview_canvas(image: Image.Image) -> Image.Image:
+        """画像の縦横比を保ち、共通サイズの枠に余白付きで収める。"""
+        canvas_size = (640, 360)
+        preview = ImageOps.contain(image.convert("RGB"), canvas_size, method=Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", canvas_size, (248, 251, 249))
+        canvas.paste(preview, ((canvas_size[0] - preview.width) // 2,
+                               (canvas_size[1] - preview.height) // 2))
+        return canvas
+
+    sample_col, selected_col = st.columns(2, gap="medium")
     with sample_col:
-        # 画像は小さめに表示し、診断ボタンが画面下へ押し出されないようにする。
+        st.markdown('<div class="diagnosis-photo-label">全体写真のお手本</div>', unsafe_allow_html=True)
         sample_path = APP_DIR / "sample_whole_image.png"
-        if sample_path.exists():
-            st.image(str(sample_path), caption="全体写真のお手本", width=220)
+        if sample_path.is_file():
+            with Image.open(sample_path) as sample_source:
+                st.image(photo_preview_canvas(sample_source), width="stretch")
         else:
-            st.caption("お手本写真は sample_whole_image.png をアプリと同じフォルダに置くと表示されます。")
-    with upload_col:
-        whole_file = st.file_uploader(
-            "全体写真をアップロード", type=SUPPORTED_UPLOAD_TYPES,
-            key="diagnosis_whole", label_visibility="collapsed")
+            st.info("お手本写真が見つかりません。app.pyと同じフォルダに sample_whole_image.png を配置してください。")
+    with selected_col:
+        st.markdown('<div class="diagnosis-photo-label">選択した写真</div>', unsafe_allow_html=True)
         if whole_file is not None:
             try:
-                st.image(validated_upload(whole_file), caption="選択した写真", width=180)
+                st.image(photo_preview_canvas(validated_upload(whole_file)), width="stretch")
             except ValueError as exc:
                 st.warning(str(exc))
-        st.caption("JPG・PNG・HEIC／最大10MB")
+        else:
+            st.info("写真を選ぶと、ここにお手本と同じ大きさで表示されます。")
+
     fruit_visible = st.radio(
         "写真に実が写っていますか？", ["写っている", "写っていない"],
         index=1, horizontal=True,
