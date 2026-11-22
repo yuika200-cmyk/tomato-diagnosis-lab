@@ -2594,7 +2594,9 @@ elif st.session_state.page == "diagnosis_upload":
                     checked_image = validated_upload(uploaded)
                     saved_photo = uploaded.getvalue()
                     st.session_state.diagnosis_selected_photo_bytes = saved_photo
-                    show_inline_preview(checked_image)
+                    # アップロードが完了したら直ちに描画をやり直し、
+                    # 大きなアップロード枠を消して右列を写真に置き換える。
+                    st.rerun()
                 except ValueError as exc:
                     st.warning(str(exc))
             else:
