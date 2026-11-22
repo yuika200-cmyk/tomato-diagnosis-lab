@@ -1,5 +1,6 @@
 import os
 import io
+import base64
 import logging
 import warnings
 
@@ -2532,6 +2533,18 @@ elif st.session_state.page == "diagnosis_upload":
         canvas.save(output, format="JPEG", quality=88)
         return output.getvalue()
 
+    # Streamlit のメディア配信URLを使わずに、表示用JPEGをHTMLに直接埋め込む。
+    # AI判定用の元画像データには一切触れない。
+    def show_inline_preview(image: Image.Image) -> None:
+        encoded = base64.b64encode(display_preview_bytes(image)).decode("ascii")
+        st.markdown(
+            '<img src="data:image/jpeg;base64,' + encoded + '" '
+            'style="display:block;width:100%;aspect-ratio:16/9;object-fit:contain;'
+            'border-radius:10px;border:1px solid #e0e9e2;" '
+            'alt="ミニトマトの写真">',
+            unsafe_allow_html=True,
+        )
+
     sample_col, upload_col = st.columns(2, gap="medium")
     with sample_col:
         st.markdown('<div class="diagnosis-photo-label">全体写真のお手本</div>', unsafe_allow_html=True)
@@ -2540,12 +2553,11 @@ elif st.session_state.page == "diagnosis_upload":
             try:
                 with Image.open(sample_path) as sample_source:
                     sample_source.load()
-                    sample_data = display_preview_bytes(sample_source)
-                st.image(sample_data, use_container_width=True)
+                    show_inline_preview(sample_source)
             except Exception as exc:
                 LOGGER.exception("Sample image failed to load: %s", sample_path)
                 st.error("お手本写真を表示できません。画像ファイルの中身を確認してください。")
-                st.caption(f"ファイル: {sample_path.name} / {type(exc).__name__}")
+                st.caption(f"ファイル: {sample_path.name} / {type(exc).__name__}: {exc}")
         else:
             st.warning("お手本写真が見つかりません。")
             st.caption(f"確認先：{sample_path}")
@@ -2561,7 +2573,7 @@ elif st.session_state.page == "diagnosis_upload":
         if whole_file is not None:
             try:
                 selected_image = validated_upload(whole_file)
-                st.image(display_preview_bytes(selected_image), use_container_width=True)
+                show_inline_preview(selected_image)
             except (ValueError, OSError) as exc:
                 st.warning(str(exc))
         else:
