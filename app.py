@@ -2504,6 +2504,48 @@ elif st.session_state.page == "diagnosis_upload":
         align-items: center !important;
         justify-content: center !important;
       }
+      /* 写真選択ボタンを真ん中に。元の英語ラベルの幅も消す。 */
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 170px !important;
+        min-width: 170px !important;
+        margin: 0 auto !important;
+        padding: 0 12px !important;
+        font-size: 0 !important;
+        line-height: 1 !important;
+        text-align: center !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      [data-testid="stFileUploader"] button::after {
+        content: "写真を選ぶ" !important;
+        display: block !important;
+        font-size: 15px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+      }
+      /* 選択後の「写真を変更する」は控えめな灰色の文字ボタンに。 */
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      .st-key-diagnosis_change_photo button {
+        background: transparent !important;
+        color: #77837c !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 6px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        min-height: 28px !important;
+        height: 28px !important;
+        padding: 2px 8px !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.diagnosis-new-title)
+      .st-key-diagnosis_change_photo button:hover {
+        background: #f2f5f2 !important;
+        color: #5a6960 !important;
+        box-shadow: none !important;
+      }
       /* 診断するボタンは操作しやすい高さを確保。 */
       div[data-testid="stMainBlockContainer"] .stButton button { min-height: 44px; }
       @media (max-width: 640px) {
