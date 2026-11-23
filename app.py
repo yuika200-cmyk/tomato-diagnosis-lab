@@ -1694,30 +1694,49 @@ if st.session_state.page == "model_improve":
     </style>
     """, unsafe_allow_html=True)
 
-header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
-with header_brand:
-    st.markdown(
-        '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
-        'color:#165237;padding:6px 0;">AI生育診断アプリ</div>',
-        unsafe_allow_html=True,
-    )
-with header_account:
-    if st.session_state.page == "account":
-        # 右上は小さな文字の戻るリンクのみ。
-        if st.button("← ホームに戻る", key="account_home_link", use_container_width=True):
+if st.session_state.page == "model_improve":
+    # モデル改善画面：ブランドとナビゲーションを一段にまとめる
+    header_brand, header_account, header_home = st.columns([5, 1.25, 1.4], vertical_alignment="center", gap="small")
+    with header_brand:
+        st.markdown(
+            '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
+            'color:#165237;padding:3px 0;">AI生育診断アプリ</div>',
+            unsafe_allow_html=True,
+        )
+    with header_account:
+        logged_in = history_cloud.user() is not None
+        if st.button("マイページ" if logged_in else "ログイン・登録", key="header_account_open", use_container_width=True):
+            st.session_state.page = "account"
+            st.rerun()
+    with header_home:
+        if st.button("← ホームに戻る", key="global_home_navigation", use_container_width=True):
             st.session_state.page = "home"
             st.session_state.force_scroll_top = True
             st.rerun()
-    else:
-        logged_in = history_cloud.user() is not None
-        if st.button(("マイページ" if logged_in else "ログイン・登録") if st.session_state.page == "model_improve" else ("👤 マイページ" if logged_in else "👤 ログイン・登録"), key="header_account_open", use_container_width=True):
-            st.session_state.page = "account"
-            st.rerun()
+else:
+    header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
+    with header_brand:
+        st.markdown(
+            '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
+            'color:#165237;padding:6px 0;">AI生育診断アプリ</div>',
+            unsafe_allow_html=True,
+        )
+    with header_account:
+        if st.session_state.page == "account":
+            if st.button("← ホームに戻る", key="account_home_link", use_container_width=True):
+                st.session_state.page = "home"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+        else:
+            logged_in = history_cloud.user() is not None
+            if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
+                st.session_state.page = "account"
+                st.rerun()
 
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
-if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account"):
+if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account", "model_improve"):
     # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
@@ -3328,6 +3347,23 @@ elif st.session_state.page == "model_improve":
 
     st.markdown("""
     <style>
+      /* モデル改善ページ限定：Streamlit既定の上部余白を減らす */
+      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) {
+          padding-top: 0.75rem !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) [data-testid="stVerticalBlock"] {
+          row-gap: 0.75rem;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) [data-testid="stDivider"] {
+          margin: 0.35rem 0 0.65rem !important;
+      }
+      .st-key-global_home_navigation button {
+          min-height:29px !important;height:29px !important;
+          padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
+          background:transparent !important;color:#52645a !important;
+          border:1px solid #d7e2da !important;border-radius:8px !important;
+          box-shadow:none !important;white-space:nowrap !important;
+      }
       .model-improve-title {font-size:clamp(26px,3vw,34px);font-weight:900;color:#153b2d;margin:0 0 8px;line-height:1.3;}
       .model-improve-desc {font-size:15px;color:#60736a;line-height:1.75;margin-bottom:24px;}
       .model-improve-card-title {font-size:19px;font-weight:850;color:#183e2c;margin:5px 0 10px;line-height:1.4;}
