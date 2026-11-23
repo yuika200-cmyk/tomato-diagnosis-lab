@@ -1677,22 +1677,32 @@ div[data-testid="stButton"] button {
 # =========================================================
 # 共通ヘッダー：どの画面でもログイン・ホームへ戻る操作を表示
 # =========================================================
-# AIモデル改善画面では、マイページへのリンクも「ホームに戻る」と同じ控えめな表示にする。
-if st.session_state.page == "model_improve":
-    st.markdown("""
-    <style>
-    .st-key-header_account_open button {
-        min-height:29px !important;height:29px !important;
-        padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
-        background:transparent !important;color:#52645a !important;
-        border:1px solid #d7e2da !important;border-radius:8px !important;
-        box-shadow:none !important;white-space:nowrap !important;
-    }
-    .st-key-header_account_open button:hover {
-        background:#f3f8f4 !important;color:#247a46 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# 全ページ共通：ログイン・登録／マイページは控えめな枠線ボタンに統一。
+# ほかの画面で設定したボタン色に影響されないようキーで限定する。
+st.markdown("""
+<style>
+.st-key-header_account_open button,
+.st-key-header_account_open button[kind],
+.st-key-account_home_link button {
+    min-height:29px !important;
+    height:29px !important;
+    padding:2px 7px !important;
+    font-size:11px !important;
+    font-weight:600 !important;
+    background:transparent !important;
+    color:#52645a !important;
+    border:1px solid #d7e2da !important;
+    border-radius:8px !important;
+    box-shadow:none !important;
+    white-space:nowrap !important;
+}
+.st-key-header_account_open button:hover,
+.st-key-account_home_link button:hover {
+    background:#f3f8f4 !important;
+    color:#247a46 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 if st.session_state.page == "model_improve":
     # モデル改善画面：ブランドとナビゲーションを一段にまとめる
@@ -1729,7 +1739,7 @@ else:
                 st.rerun()
         else:
             logged_in = history_cloud.user() is not None
-            if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
+            if st.button("マイページ" if logged_in else "ログイン・登録", key="header_account_open", use_container_width=True):
                 st.session_state.page = "account"
                 st.rerun()
 
@@ -2402,6 +2412,11 @@ if st.session_state.page == "home":
             color: #207d43 !important;
             border: 1px solid #91c7a0 !important;
         }
+        .st-key-home_start_diagnosis button {
+            background:#fff !important;
+            color:#207d43 !important;
+            border:1px solid #91c7a0 !important;
+        }
         div[data-testid="stMainBlockContainer"] .stButton > button:disabled {
             background: #f0f2f0 !important;
             color: #818b85 !important;
@@ -2425,7 +2440,7 @@ if st.session_state.page == "home":
             st.markdown('<div class="compact-home-card-title">AI生育診断</div>'
                         '<div class="compact-home-card-desc">全体写真1枚から診断します。</div>',
                         unsafe_allow_html=True)
-            if st.button("AI生育診断をはじめる", type="primary", use_container_width=True,
+            if st.button("AI生育診断をはじめる", type="secondary", use_container_width=True,
                          key="home_start_diagnosis"):
                 st.session_state.page = "diagnosis_upload"
                 st.session_state.force_scroll_top = True
@@ -2459,15 +2474,6 @@ if st.session_state.page == "home":
                 st.session_state.page = "model_improve"
                 st.session_state.force_scroll_top = True
                 st.rerun()
-            with st.expander("学習写真の登録・仮分類はこちら"):
-                if st.button("学習写真を見る", use_container_width=True, key="home_open_training_gallery"):
-                    st.session_state.page = "training_gallery"
-                    st.session_state.force_scroll_top = True
-                    st.rerun()
-                if st.button("写真を一括仮分類", use_container_width=True, key="home_open_bulk_classifier"):
-                    st.session_state.page = "bulk_classifier"
-                    st.session_state.force_scroll_top = True
-                    st.rerun()
     with program_col:
         with st.container(border=True):
             st.markdown('<div class="compact-home-card-title">② プログラムを改善する</div>'
