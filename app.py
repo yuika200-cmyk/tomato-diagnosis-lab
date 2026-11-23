@@ -1792,7 +1792,7 @@ else:
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
-if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account", "model_improve"):
+if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account", "model_improve", "history_detail"):
     # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
@@ -3332,13 +3332,25 @@ elif st.session_state.page == "history_detail":
         unsafe_allow_html=True,
     )
 
+    # 記録詳細画面は、画面最下部にホームへの移動を配置する。
+    # ページ上部はアプリ名・マイページ・記録タイトルのみとする。
     # 詳細画面だけの調整：ヘッダー・日付・写真の間の空白を詰める。
     st.markdown("""
     <style>
-    div[data-testid="stMainBlockContainer"]:has(.history-detail-head) {
-        padding-top: .25rem !important;
-        padding-bottom: 1.1rem !important;
+    /* Streamlit の上部標準余白を抑える。見出し周りを詰めすぎない。 */
+    [data-testid="stMainBlockContainer"]:has(.history-detail-head),
+    .block-container:has(.history-detail-head) {
+        padding-top: 1.0rem !important;
+        padding-bottom: 1.4rem !important;
     }
+    /* 日付見出しや結果の間に残る不要な空白を除く */
+    [data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stVerticalBlock"] {
+        row-gap: .75rem !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stElementContainer"]:empty {
+        margin: 0 !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.history-detail-head) hr { margin: .25rem 0 .45rem !important; }
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
     > div > div[data-testid="stVerticalBlock"] {
         gap: .55rem !important;
@@ -3346,9 +3358,23 @@ elif st.session_state.page == "history_detail":
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
     [data-testid="stDivider"] { margin: .15rem 0 !important; }
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
-    .history-detail-head { margin: 0 0 8px !important; }
+    .history-detail-head { margin: 1px 0 12px !important; align-items:baseline; }
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
-    .history-detail-head h2 {font-size:24px !important;}
+    .history-detail-head h2 {font-size:25px !important; line-height:1.35 !important;}
+    .st-key-detail_back_to_list button,
+    .st-key-detail_bottom_home button {
+       min-height: 36px !important;
+       height: 36px !important;
+       background:transparent !important;
+       color:#64756b !important;
+       border:1px solid #d6e1da !important;
+       border-radius:9px !important;
+       box-shadow:none !important;
+       font-size:13px !important;
+       font-weight:600 !important;
+    }
+    .st-key-detail_back_to_list button:hover,
+    .st-key-detail_bottom_home button:hover {background:#f3f8f4 !important;color:#217447 !important;}
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
     .history-detail-section {margin:0 0 7px !important;}
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
@@ -3448,10 +3474,17 @@ elif st.session_state.page == "history_detail":
                         st.rerun()
 
     st.markdown('<div class="history-detail-nav-anchor"></div>', unsafe_allow_html=True)
-    if st.button("← 記録一覧に戻る", key="detail_back_to_list"):
-        st.session_state.force_scroll_top = True
-        st.session_state.page = "history_calendar"
-        st.rerun()
+    back_col, home_col = st.columns(2, gap="small")
+    with back_col:
+        if st.button("← 記録一覧に戻る", key="detail_back_to_list", use_container_width=True):
+            st.session_state.force_scroll_top = True
+            st.session_state.page = "history_calendar"
+            st.rerun()
+    with home_col:
+        if st.button("← ホームに戻る", key="detail_bottom_home", use_container_width=True):
+            st.session_state.force_scroll_top = True
+            st.session_state.page = "home"
+            st.rerun()
 
 
 # =========================================================
