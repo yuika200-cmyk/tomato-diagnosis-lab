@@ -3385,23 +3385,23 @@ elif st.session_state.page == "model_improve":
       @media(max-width:760px){.model-improve-card-desc{min-height:0}}
     </style>
     <div class="model-improve-title">AIモデルの改善</div>
-    <div class="model-improve-desc">学習データを活用してAIモデルを改善し、作成したモデルを共有・利用できます。</div>
+    <div class="model-improve-desc">元のAIモデルを改良したり、作成したモデルを登録・共有したりできます。</div>
     """, unsafe_allow_html=True)
 
     gallery_col, register_col, select_col = st.columns(3, gap="medium")
     with gallery_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">学習データを利用</div>'
-                        '<div class="model-improve-card-desc">元の学習写真を閲覧・取得できます。</div>',
+            st.markdown('<div class="model-improve-card-title">AIモデルを改良する</div>'
+                        '<div class="model-improve-card-desc">元のAIモデルをもとに、自分なりに改良できます。</div>',
                         unsafe_allow_html=True)
-            if st.button("学習データを見る", key="improve_gallery", use_container_width=True):
+            if st.button("元のモデルを見る", key="improve_gallery", use_container_width=True):
                 st.session_state.page = "training_gallery"
                 st.session_state.force_scroll_top = True
                 st.rerun()
     with register_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">AIモデルを登録</div>'
-                        '<div class="model-improve-card-desc">改善したモデルを登録・共有できます。</div>',
+            st.markdown('<div class="model-improve-card-title">AIモデルを登録する</div>'
+                        '<div class="model-improve-card-desc">改良したAIモデルを登録して共有できます。</div>',
                         unsafe_allow_html=True)
             if st.button("モデルを登録する", key="improve_register", use_container_width=True):
                 st.session_state.page = "model_registry"
@@ -3409,8 +3409,8 @@ elif st.session_state.page == "model_improve":
                 st.rerun()
     with select_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">モデルを選んで診断</div>'
-                        '<div class="model-improve-card-desc">標準モデルや登録済みモデルを使って診断できます。</div>',
+            st.markdown('<div class="model-improve-card-title">モデルを選んで診断する</div>'
+                        '<div class="model-improve-card-desc">自分やほかの人が作ったモデルで診断できます。</div>',
                         unsafe_allow_html=True)
             if st.button("モデルを選ぶ", key="improve_select", use_container_width=True):
                 st.session_state.page = "model_choice"
