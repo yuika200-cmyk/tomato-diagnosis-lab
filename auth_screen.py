@@ -32,8 +32,8 @@ def show():
         border: 0 !important; padding: 0 !important; margin:0 !important;
     }
     .login-heading {text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:0 0 3px;line-height:1.3;}
-    .login-explain {text-align:center;color:#64746a;font-size:14px;margin:0 0 9px;line-height:1.45;}
-    .login-foot {text-align:center;color:#728079;font-size:13px;margin:8px 0;}
+    .login-explain {text-align:center;color:#64746a;font-size:14px;margin:0 0 12px;line-height:1.5;}
+    .login-foot {text-align:center;color:#728079;font-size:13px;margin:12px 0 4px;}
     /* 標準 Streamlit の primary の赤色が残ってしまう問題を確実に回避 */
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button,
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind],
@@ -48,11 +48,14 @@ def show():
         background:#1f793c !important;color:#fff !important;
     }
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_google_start button {
-        background:white !important;background-image:none !important;
-        border:1px solid #a6c6b1 !important;color:#246c45 !important;
+        background:#278c48 !important;background-image:none !important;
+        border:1px solid #278c48 !important;color:#ffffff !important;
         border-radius:10px !important;box-shadow:none !important;
         min-height:44px !important;height:44px !important;
-        font-size:15px !important;white-space:nowrap !important;
+        font-size:15px !important;font-weight:750 !important;white-space:nowrap !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_google_start button:hover {
+        background:#1f793c !important;border-color:#1f793c !important;color:white !important;
     }
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_register button,
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_reset button,
@@ -72,7 +75,8 @@ def show():
     </style>
     <div class="login-view-marker"></div>
     """,unsafe_allow_html=True)
-    _, center, _ = st.columns([1, 2.5, 1])
+    # PCではフォームをやや細く、スマホでは自然に全幅表示
+    _, center, _ = st.columns([1, 1.7, 1], gap='small')
     with center:
         if st.session_state.get('history_password_recovery'):
             st.markdown('<div class="login-heading">新しいパスワードの設定</div>',unsafe_allow_html=True)
@@ -169,4 +173,4 @@ def show():
                     except Exception as exc: auth._show_auth_error(exc)
             if st.button('ログイン画面に戻る',use_container_width=True,key='auth_reset_back'): _go('login')
         st.markdown('<div class="login-foot">診断だけならログインは不要です。</div>',unsafe_allow_html=True)
-        st.caption('ログイン画面 v2（デザイン調整版）')
+        # 確認用のバージョン表示は削除
