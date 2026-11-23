@@ -1686,7 +1686,7 @@ with header_brand:
     )
 with header_account:
     if st.session_state.page == "account":
-        # 認証ページでは重複する「ログイン・登録」ボタンを表示しない。
+        # 右上は小さな文字の戻るリンクのみ。
         if st.button("← ホームに戻る", key="account_home_link", use_container_width=True):
             st.session_state.page = "home"
             st.session_state.force_scroll_top = True

@@ -17,47 +17,61 @@ def show():
     auth._google_callback()
     auth._recovery_callback()
 
-    st.markdown('''<style>
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) { max-width: 780px !important; padding-top:.3rem !important; }
-    .login-view-marker {height:0;}
-    .login-heading{text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:0 0 3px;}
-    .login-explain{text-align:center;color:#64746a;font-size:14px;margin-bottom:5px;}
-    .login-foot{text-align:center;color:#728079;font-size:13px;margin:12px 0;}
-    .st-key-account_home_link button {background:transparent!important;border:0!important;box-shadow:none!important;color:#64746a!important;min-height:29px!important;font-size:12px!important;white-space:nowrap!important;}
-    /* 認証画面だけ：既存画面の緑と統一、詰めすぎず短く */
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stVerticalBlock"] {gap:.65rem;}
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stForm"] {margin-top:0!important;}
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind="primary"],
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) button[data-testid="stBaseButton-primary"] {
-        background:linear-gradient(180deg,#31a65a,#218b47)!important;
-        border:1px solid #218b47!important;
-        color:white!important;
-        box-shadow:none!important;
-        min-height:44px!important;
-        border-radius:10px!important;
-        font-size:15px!important;
-        font-weight:750!important;
+    # ログイン画面でのみ適用する専用デザイン。既存のグローバルボタンCSSより後に読み込む。
+    st.markdown("""
+    <style>
+    /* マーカーを含む表示中だけ適用。標準ボタンの大きすぎる装飾を上書きする */
+    .login-view-marker {height:0; margin:0; padding:0;}
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) {
+        padding-top: 0.15rem !important;
     }
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind="primary"]:hover,
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) button[data-testid="stBaseButton-primary"]:hover {
-        background:#1c7e40!important;
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stVerticalBlock"] {
+        gap: .48rem !important;
     }
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_google_start button {
-        background:white!important;color:#246c45!important;border:1px solid #a7c6b1!important;
-        box-shadow:none!important;min-height:44px!important;border-radius:10px!important;
-        font-size:14px!important;white-space:nowrap!important;
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stForm"] {
+        border: 0 !important; padding: 0 !important; margin:0 !important;
     }
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_register button,
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_reset button,
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_register_back button,
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_reset_back button {
-        background:transparent!important;color:#607169!important;border:0!important;
-        box-shadow:none!important;font-size:13px!important;font-weight:500!important;
-        min-height:32px!important;white-space:normal!important;
+    .login-heading {text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:0 0 3px;line-height:1.3;}
+    .login-explain {text-align:center;color:#64746a;font-size:14px;margin:0 0 9px;line-height:1.45;}
+    .login-foot {text-align:center;color:#728079;font-size:13px;margin:8px 0;}
+    /* 標準 Streamlit の primary の赤色が残ってしまう問題を確実に回避 */
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button,
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind],
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[data-testid] {
+        background:#278c48 !important;background-image:none !important;
+        color:#fff !important;border:1px solid #278c48 !important;
+        box-shadow:none !important;border-radius:10px !important;
+        min-height:44px !important;height:44px !important;
+        font-size:16px !important;font-weight:750 !important;
     }
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) input {font-size:15px!important;}
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) div[data-testid="stForm"] {border:0!important;padding:0!important;}
-    </style><div class="login-view-marker"></div>''', unsafe_allow_html=True)
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button:hover {
+        background:#1f793c !important;color:#fff !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_google_start button {
+        background:white !important;background-image:none !important;
+        border:1px solid #a6c6b1 !important;color:#246c45 !important;
+        border-radius:10px !important;box-shadow:none !important;
+        min-height:44px !important;height:44px !important;
+        font-size:15px !important;white-space:nowrap !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_register button,
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_reset button,
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_register_back button,
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_reset_back button {
+        background:transparent !important;background-image:none !important;
+        border:0 !important;color:#607169 !important;box-shadow:none !important;
+        min-height:32px !important;font-size:13px !important;font-weight:500 !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) input {font-size:16px !important;}
+    [data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-account_home_link button {
+        background:transparent !important;background-image:none !important;
+        border:0 !important;color:#68776e !important;box-shadow:none !important;
+        min-height:30px !important;height:30px !important;font-size:13px !important;
+        font-weight:500 !important;white-space:nowrap !important;
+    }
+    </style>
+    <div class="login-view-marker"></div>
+    """,unsafe_allow_html=True)
     _, center, _ = st.columns([1, 2.5, 1])
     with center:
         if st.session_state.get('history_password_recovery'):
@@ -102,7 +116,7 @@ def show():
             with st.form('auth_login_form'):
                 email=st.text_input('メールアドレス',placeholder='example@email.com',key='auth_login_email')
                 password=st.text_input('パスワード',type='password',key='auth_login_password')
-                submitted=st.form_submit_button('ログインする',use_container_width=True,type='primary')
+                submitted=st.form_submit_button('ログインする',use_container_width=True)
             if submitted:
                 if not email.strip() or not password:
                     st.warning('メールアドレスとパスワードを入力してください。')
@@ -126,7 +140,7 @@ def show():
                 email=st.text_input('メールアドレス',placeholder='example@email.com',key='auth_register_email')
                 password=st.text_input('パスワード（8文字以上）',type='password',key='auth_register_password')
                 again=st.text_input('パスワード（確認）',type='password',key='auth_register_password_again')
-                submitted=st.form_submit_button('アカウントを作成',use_container_width=True,type='primary')
+                submitted=st.form_submit_button('アカウントを作成',use_container_width=True)
             if submitted:
                 if not email.strip() or '@' not in email: st.warning('メールアドレスを確認してください。')
                 elif len(password)<8: st.warning('パスワードは8文字以上で入力してください。')
@@ -142,7 +156,7 @@ def show():
         else:
             with st.form('auth_reset_form'):
                 email=st.text_input('登録したメールアドレス',placeholder='example@email.com',key='auth_recovery_email')
-                submitted=st.form_submit_button('再設定メールを送信',use_container_width=True,type='primary')
+                submitted=st.form_submit_button('再設定メールを送信',use_container_width=True)
             if submitted:
                 if not email.strip() or '@' not in email: st.warning('メールアドレスを確認してください。')
                 else:
@@ -155,3 +169,4 @@ def show():
                     except Exception as exc: auth._show_auth_error(exc)
             if st.button('ログイン画面に戻る',use_container_width=True,key='auth_reset_back'): _go('login')
         st.markdown('<div class="login-foot">診断だけならログインは不要です。</div>',unsafe_allow_html=True)
+        st.caption('ログイン画面 v2（デザイン調整版）')
