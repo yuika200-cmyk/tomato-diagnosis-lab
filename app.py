@@ -1356,6 +1356,27 @@ div[data-testid="stButton"] button {
 
 
 
+    /* ===== 記録詳細：診断結果を主役にしたコンパクト版 ===== */
+    .history-detail-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 24px; margin:0 0 22px; }
+    .history-detail-head h2 { margin:0 !important; font-size:26px !important; font-weight:850 !important; color:#173e30 !important; }
+    .history-detail-head span { font-size:13px; color:#738079; }
+    .history-detail-section { font-size:18px; font-weight:800; color:#174733; margin:0 0 12px; }
+    .history-detail-result-list { background:#fff; border:1px solid #dfe9e1; border-radius:13px; overflow:hidden; }
+    .history-detail-result-row { display:grid; grid-template-columns:100px 135px minmax(0,1fr); gap:12px; align-items:center; padding:15px 17px; }
+    .history-detail-result-row + .history-detail-result-row { border-top:1px solid #edf0ed; }
+    .history-detail-result-name { font-size:15px; color:#243a30; font-weight:750; }
+    .history-detail-result-value { font-size:15px; color:#17673e; font-weight:850; }
+    .history-detail-result-comment { font-size:14px; color:#45564d; line-height:1.55; overflow-wrap:anywhere; }
+    .history-detail-advice { margin-top:24px; background:#f1f8f2; border:1px solid #d7e9da; border-radius:13px; padding:17px 20px; }
+    .history-detail-note { margin-top:16px; background:#fff; border:1px solid #e0e8e1; border-radius:13px; padding:17px 20px; }
+    .history-detail-advice p, .history-detail-note p { font-size:15px; color:#284036; line-height:1.7; margin:0; white-space:pre-wrap; }
+    div[data-testid="stVerticalBlock"]:has(> div .history-detail-nav-anchor) div[data-testid="stButton"] button { min-height:38px !important; font-size:13px !important; background:transparent !important; border:1px solid #d7e3da !important; color:#65736b !important; box-shadow:none !important; }
+    @media (max-width:720px) {
+       .history-detail-result-row { grid-template-columns:78px minmax(0,1fr); gap:4px 12px; }
+       .history-detail-result-comment { grid-column:2; }
+       .history-detail-head h2 { font-size:22px !important; }
+    }
+
     /* ===== 成長のきろく詳細：写真を小さめにして文字崩れを防ぐ ===== */
     .detail-title { font-size: 28px !important; font-weight: 950 !important; color: #163732 !important; margin: -6px 0 18px 0 !important; letter-spacing: .04em !important; }
     .detail-panel { background: rgba(255,255,255,.95) !important; border: 1px solid #dfe8e2 !important; border-radius: 18px !important; box-shadow: 0 12px 28px rgba(23,107,52,.07) !important; padding: 18px !important; margin-bottom: 16px !important; overflow: hidden !important; }
@@ -3263,52 +3284,86 @@ elif st.session_state.page == "history_detail":
         ((label, p) for label, p in image_paths if p and (p.startswith("https://") or Path(p).exists())),
         (None, None),
     )
-    st.markdown(f'<div class="detail-title">📅 {day_text} の記録</div>', unsafe_allow_html=True)
-    col_photo, col_info = st.columns([0.75, 1.45], gap="large")
-    with col_photo:
-        st.markdown('<div class="detail-photo-title">📷 写真</div>', unsafe_allow_html=True)
-        if main_image_path:
-            st.image(main_image_path, caption=main_label, width=340)
-        else:
-            st.info("写真は保存されていません。")
-        st.markdown('<div class="detail-photo-note">成長を比べるための記録写真です</div>', unsafe_allow_html=True)
-    with col_info:
-        fruit_label = row.get("fruit_model_label", "")
-        stage, harvest_note = harvest_guidance(fruit_label)
-        pct = recorded_harvest_percent(row)
-        pct_width = pct if pct is not None else 0
-        st.markdown(
-            f'<div class="detail-mini-card"><div class="detail-mini-label">育て始めて</div>'
-            f'<div class="detail-mini-value">{escape(str(row.get("days_grown", "")))}日目</div></div>'
-            '<div class="detail-progress-card">'
-            '<div class="detail-progress-title">🍅 収穫の進み具合（目安）</div>'
-            f'<div class="detail-progress-percent">{recorded_harvest_text(row)}</div>'
-            '<div class="harvest-bar">'
-            f'<div class="harvest-fill" style="width:{pct_width}%;"></div></div>'
-            f'<div class="detail-progress-comment">{escape(stage)}：{escape(harvest_note)}<br>{escape(row.get("harvest_basis", ""))}</div></div>',
-            unsafe_allow_html=True,
-        )
-        detail_rows = []
-        for key, icon in [("whole", "🌱"), ("leaf", "🍃"), ("fruit", "🍅")]:
-            label = row.get(f"{key}_model_label", "")
-            status = escape(label) if label else "記録なし（旧形式）"
-            detail_rows.append(
-                '<div class="detail-status-item">'
-                f'<div class="detail-status-icon">{icon}</div>'
-                f'<div class="detail-status-label">{MODEL_NAMES[key]}</div>'
-                f'<div class="detail-status-pill neutral">{status}</div>'
-                f'<div class="detail-status-comment">{escape(model_comment(key, label))}</div>'
+    # 記録詳細：重要なAI結果を先に表示し、旧形式の収穫予想は表示しない。
+    days_raw = row.get("days_grown")
+    try:
+        days_num = int(days_raw)
+        days_text = f"育て始めて {days_num} 日目" if days_num >= 1 else ""
+    except (TypeError, ValueError):
+        days_text = ""
+
+    st.markdown(
+        f'<div class="history-detail-head"><h2>{escape(day_text)} の記録</h2>'
+        + (f'<span>{escape(days_text)}</span>' if days_text else "")
+        + '</div>',
+        unsafe_allow_html=True,
+    )
+
+    # 詳細画面だけの調整：写真は小さめ、AI診断結果を優先する。
+    st.markdown("""
+    <style>
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stImage"] img {
+        max-height: 240px !important;
+        max-width: 100% !important;
+        width: auto !important;
+        object-fit: contain !important;
+        border-radius: 10px;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stImage"] {
+        max-width: 230px;
+    }
+    @media (max-width: 640px) {
+        div[data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stImage"] img {
+            max-height: 200px !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 写真がある場合だけ表示。写真が保存されていない記録は空の写真枠を作らない。
+    if main_image_path:
+        photo_col, summary_col = st.columns([0.72, 2.28], gap="medium")
+        with photo_col:
+            st.markdown('<div class="history-detail-section">記録写真</div>', unsafe_allow_html=True)
+            try:
+                st.image(main_image_path, caption=main_label, width=220)
+            except Exception:
+                st.caption("写真を表示できませんでした。")
+    else:
+        summary_col = st.container()
+
+    with summary_col:
+        st.markdown('<div class="history-detail-section">AI診断結果</div>', unsafe_allow_html=True)
+        result_parts = []
+        for key, title in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
+            value = (row.get(f"{key}_model_label", "") or "").strip()
+            if not value or value in ("実なし（未診断）", "判定なし", "未診断"):
+                continue
+            commentary = model_comment(key, value)
+            result_parts.append(
+                '<div class="history-detail-result-row">'
+                f'<div class="history-detail-result-name">{escape(title)}</div>'
+                f'<div class="history-detail-result-value">{escape(value)}</div>'
+                f'<div class="history-detail-result-comment">{escape(commentary)}</div>'
                 '</div>'
             )
-        st.markdown(
-            '<div class="detail-status-title">🌿 AI診断結果</div>'
-            '<div class="detail-status-list">' + ''.join(detail_rows) + '</div>'
-            '<div class="detail-advice-box"><div class="detail-advice-title">💡 アドバイス</div>'
-            f'<div class="detail-advice-text">{escape(row.get("model_advice", "") or "この記録にはアドバイスが保存されていません。")}</div></div>'
-            '<div class="detail-record-box">'
-            f'<b>📝 観察メモ</b><br>{escape(row.get("observation_note", "") or "メモはありません。")}</div>',
-            unsafe_allow_html=True,
-        )
+        if result_parts:
+            st.markdown('<div class="history-detail-result-list">' + ''.join(result_parts) + '</div>', unsafe_allow_html=True)
+        else:
+            st.caption("この記録にはAIの判定結果がありません。")
+
+    advice = (row.get("model_advice", "") or "").strip()
+    note = (row.get("observation_note", "") or "").strip()
+    st.markdown(
+        '<div class="history-detail-advice"><div class="history-detail-section">今日のアドバイス</div>'
+        f'<p>{escape(advice) if advice else "この記録にはアドバイスがありません。"}</p></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="history-detail-note"><div class="history-detail-section">観察メモ</div>'
+        f'<p>{escape(note) if note else "メモはありません。"}</p></div>',
+        unsafe_allow_html=True,
+    )
 
     # 削除は詳細表示中の記録IDを指定し、必ず本人に確認してから実行する。
     record_id_to_delete = row.get("id")
@@ -3339,28 +3394,19 @@ elif st.session_state.page == "history_detail":
                         st.session_state.page = "history_calendar"
                         st.rerun()
 
-    st.markdown('<div class="history-action-row">', unsafe_allow_html=True)
-    col_back, col_again, col_home = st.columns(3, gap="large")
-
-    with col_back:
-        if st.button("← きろく一覧へ", use_container_width=True):
+    st.markdown('<div class="history-detail-nav-anchor"></div>', unsafe_allow_html=True)
+    nav_col, again_col, _ = st.columns([1, 1, 2], gap="small")
+    with nav_col:
+        if st.button("← 記録一覧に戻る", key="detail_back_to_list", use_container_width=True):
             st.session_state.force_scroll_top = True
             st.session_state.page = "history_calendar"
             st.rerun()
-
-    with col_again:
-        if st.button("📷 もう一度診断する", use_container_width=True):
+    with again_col:
+        if st.button("もう一度診断する", key="detail_again_diagnosis", use_container_width=True):
             st.session_state.force_scroll_top = True
             st.session_state.page = "diagnosis_upload"
             st.rerun()
 
-    with col_home:
-        if st.button("🏠 ホームに戻る", use_container_width=True):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "home"
-            st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================
 # AIモデル改善：3つの入口をわかりやすく配置
