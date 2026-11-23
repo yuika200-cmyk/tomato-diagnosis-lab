@@ -17,6 +17,7 @@ from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from html import escape
 import history_cloud
+import auth_screen
 import model_registry
 import training_gallery
 import bulk_classifier
@@ -170,6 +171,10 @@ if back_home_query == "1":
         st.query_params.clear()
     except Exception:
         pass
+
+# Googleログイン・パスワード再設定から戻った場合は認証ページへ。
+if st.query_params.get('oauth_attempt') or st.query_params.get('recovery_attempt'):
+    st.session_state.page = 'account'
 
 # =========================================================
 # CSS
@@ -1681,12 +1686,9 @@ with header_brand:
     )
 with header_account:
     logged_in = history_cloud.user() is not None
-    with st.popover("👤 マイページ" if logged_in else "👤 ログイン・登録", use_container_width=True):
-        auth_screen = getattr(history_cloud, "auth_panel", None)
-        if callable(auth_screen):
-            auth_screen()
-        else:
-            st.error("ログイン用ファイルを確認してください（history_cloud.py）。")
+    if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
+        st.session_state.page = "account"
+        st.rerun()
 
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
@@ -2394,7 +2396,9 @@ if st.session_state.page == "home":
                     st.session_state.force_scroll_top = True
                     st.rerun()
                 else:
-                    st.session_state.show_history_login_help = True
+                    st.session_state.page = "account"
+                    st.session_state.login_view = "login"
+                    st.rerun()
 
     if st.session_state.get("show_history_login_help") and not can_save_history():
         st.info("成長の記録を見るには、右上の『ログイン・登録』からログインしてください。")
@@ -2437,6 +2441,12 @@ if st.session_state.page == "home":
 
 
 # =========================================================
+# =========================================================
+# ログイン・登録・パスワード再設定画面
+# =========================================================
+elif st.session_state.page == "account":
+    auth_screen.show()
+
 # =========================================================
 # ③ 写真アップロード画面
 # =========================================================
