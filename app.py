@@ -2420,7 +2420,7 @@ if st.session_state.page == "home":
                         '<div class="compact-home-card-desc">学習写真を追加・分類し、AIの判定精度を高めます。</div>',
                         unsafe_allow_html=True)
             if st.button("AIモデルの改善へ", use_container_width=True, key="home_open_model_registry"):
-                st.session_state.page = "model_registry"
+                st.session_state.page = "model_improve"
                 st.session_state.force_scroll_top = True
                 st.rerun()
             with st.expander("学習写真の登録・仮分類はこちら"):
@@ -3300,6 +3300,97 @@ elif st.session_state.page == "history_detail":
             st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+# =========================================================
+# AIモデル改善：3つの入口をわかりやすく配置
+# =========================================================
+elif st.session_state.page == "model_improve":
+    if st.session_state.get("force_scroll_top", False):
+        force_scroll_top()
+        st.session_state.force_scroll_top = False
+
+    st.markdown("""
+    <style>
+      .model-improve-title {font-size:clamp(26px,3vw,34px);font-weight:900;color:#153b2d;margin:0 0 8px;line-height:1.3;}
+      .model-improve-desc {font-size:15px;color:#60736a;line-height:1.75;margin-bottom:24px;}
+      .model-improve-icon {height:88px;display:flex;justify-content:center;align-items:center;
+          background:#f0f8f2;border-radius:14px;margin-bottom:14px;font-size:36px;}
+      .model-improve-card-title {font-size:18px;font-weight:850;color:#183e2c;margin-bottom:8px;line-height:1.4;}
+      .model-improve-card-desc {font-size:13px;color:#63766b;line-height:1.65;min-height:46px;margin-bottom:10px;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-improve-icon) {
+          background:#fff;border:1px solid #dfebe2;border-radius:17px;
+          box-shadow:0 4px 15px rgba(25,100,50,.04);
+      }
+      .st-key-improve_gallery button,.st-key-improve_register button,.st-key-improve_select button {
+          background:#208c49 !important;color:#fff !important;border:1px solid #208c49 !important;
+          min-height:45px !important;font-size:14px !important;font-weight:750 !important;
+          border-radius:10px !important;
+      }
+      .st-key-improve_gallery button:hover,.st-key-improve_register button:hover,.st-key-improve_select button:hover {
+          background:#176e38 !important;border-color:#176e38 !important;
+      }
+      .model-improve-note {background:#f5f8f6;border:1px solid #e3eae5;border-radius:12px;
+          padding:14px 17px;color:#627269;font-size:13px;line-height:1.7;margin-top:20px;}
+      @media(max-width:760px){.model-improve-icon{height:70px}.model-improve-card-desc{min-height:0}}
+    </style>
+    <div class="model-improve-title">AIモデルの改善</div>
+    <div class="model-improve-desc">学習データを活用してAIモデルを改善し、作成したモデルを共有・利用できます。</div>
+    """, unsafe_allow_html=True)
+
+    gallery_col, register_col, select_col = st.columns(3, gap="medium")
+    with gallery_col:
+        with st.container(border=True):
+            st.markdown('<div class="model-improve-icon">🖼️</div>'
+                        '<div class="model-improve-card-title">学習データを利用</div>'
+                        '<div class="model-improve-card-desc">元の学習写真を閲覧・取得できます。</div>',
+                        unsafe_allow_html=True)
+            if st.button("学習データを見る", key="improve_gallery", use_container_width=True):
+                st.session_state.page = "training_gallery"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+    with register_col:
+        with st.container(border=True):
+            st.markdown('<div class="model-improve-icon">🧠</div>'
+                        '<div class="model-improve-card-title">AIモデルを登録</div>'
+                        '<div class="model-improve-card-desc">改善したモデルを登録・共有できます。</div>',
+                        unsafe_allow_html=True)
+            if st.button("モデルを登録する", key="improve_register", use_container_width=True):
+                st.session_state.page = "model_registry"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+    with select_col:
+        with st.container(border=True):
+            st.markdown('<div class="model-improve-icon">🌱</div>'
+                        '<div class="model-improve-card-title">モデルを選んで診断</div>'
+                        '<div class="model-improve-card-desc">標準モデルや登録済みモデルを使って診断できます。</div>',
+                        unsafe_allow_html=True)
+            if st.button("モデルを選ぶ", key="improve_select", use_container_width=True):
+                st.session_state.page = "model_choice"
+                st.session_state.force_scroll_top = True
+                st.rerun()
+
+    st.markdown('<div class="model-improve-note">ℹ️ 登録したモデルは標準モデルを自動で置き換えません。'
+                '利用するモデルを選んで診断する仕組みは、現在準備中です。</div>',
+                unsafe_allow_html=True)
+
+elif st.session_state.page == "model_choice":
+    if st.session_state.get("force_scroll_top", False):
+        force_scroll_top()
+        st.session_state.force_scroll_top = False
+    st.markdown("## AIモデルを選んで診断")
+    st.write("現在は標準モデル（全体・葉・実）で診断できます。")
+    with st.container(border=True):
+        st.markdown("**標準モデル**")
+        st.caption("現在のAI生育診断アプリで使用しているモデルです。")
+        if st.button("標準モデルで診断する", type="primary", use_container_width=True, key="use_standard_model"):
+            st.session_state.page = "diagnosis_upload"
+            st.session_state.force_scroll_top = True
+            st.rerun()
+    st.info("登録されたモデルへの切り替えは、モデルの読み込み・分類名との対応付けを実装後に利用できます。")
+    if st.button("← AIモデルの改善に戻る", key="back_model_improve"):
+        st.session_state.page = "model_improve"
+        st.session_state.force_scroll_top = True
+        st.rerun()
 
 # =========================================================
 # ⑦ AIモデル登録・一覧（既存診断機能とは独立）
