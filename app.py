@@ -17,6 +17,7 @@ from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 from html import escape
 import history_cloud
+import history_note_sync
 import auth_screen
 import model_registry
 import training_gallery
@@ -2898,6 +2899,8 @@ elif st.session_state.page == "diagnosis_upload":
                     picture.save(buffer, format="JPEG", quality=83)
                     st.session_state.diagnosis_photo_bytes = buffer.getvalue()
                 st.session_state.diagnosis_saved = False
+                st.session_state.diagnosis_saved_note = None
+                st.session_state.diagnosis_saved_record_id = None
                 st.session_state.force_scroll_top = True
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
@@ -3149,33 +3152,63 @@ elif st.session_state.page == "diagnosis_result":
         record["observation_note"] = memo
 
     if can_save_history():
-        if st.session_state.get("diagnosis_saved", False):
-            st.success("診断結果と観察メモを保存しました。")
-            st.caption("保存後にメモを変更した場合、その変更は保存済みの記録には反映されません。")
-        elif st.button("💾 診断結果とメモを保存する", use_container_width=True, key="result_save_with_memo"):
+        # 初回は診断結果を1件だけ保存し、以後メモはその記録を更新する。
+        if not st.session_state.get("diagnosis_saved", False):
             try:
-                history_cloud.save(record, st.session_state.get("diagnosis_photo_bytes"))
+                previous_ids = {
+                    str(item.get("id"))
+                    for item in history_cloud.list_history()
+                    if item.get("id") is not None
+                }
+                save_result = history_cloud.save(
+                    record, st.session_state.get("diagnosis_photo_bytes")
+                )
+                record_id = None
+                if isinstance(save_result, dict):
+                    record_id = save_result.get("id")
+                if not record_id:
+                    added_rows = [
+                        item for item in history_cloud.list_history()
+                        if item.get("id") is not None
+                        and str(item.get("id")) not in previous_ids
+                    ]
+                    if len(added_rows) == 1:
+                        record_id = added_rows[0]["id"]
                 st.session_state.diagnosis_saved = True
-                st.success("保存できました！")
+                st.session_state.diagnosis_saved_record_id = record_id
+                st.session_state.diagnosis_saved_note = record["observation_note"]
+                st.session_state.diagnosis_autosave_error = False
             except Exception:
-                LOGGER.exception("Cloud history save failed")
-                st.error("保存できませんでした。通信状況を確認して再度お試しください。")
-        col_again, col_history = st.columns(2)
-        with col_again:
-            if st.button("↻ もう一度診断する", use_container_width=True, key="result_retry"):
-                st.session_state.pop("diagnosis_observation_memo", None)
-                st.session_state.page = "diagnosis_upload"
+                LOGGER.exception("Cloud history auto save failed")
+                st.session_state.diagnosis_autosave_error = True
+
+        if st.session_state.get("diagnosis_saved", False):
+            record_id = st.session_state.get("diagnosis_saved_record_id")
+            saved_note = st.session_state.get("diagnosis_saved_note")
+            if record["observation_note"] != saved_note:
+                if not record_id:
+                    st.warning("メモの保存先を特定できません。画面を移動する前に管理者へお問い合わせください。")
+                else:
+                    try:
+                        history_note_sync.update_note(record_id, record["observation_note"])
+                        st.session_state.diagnosis_saved_note = record["observation_note"]
+                    except Exception:
+                        LOGGER.exception("Observation memo update failed")
+                        st.error("観察メモを反映できませんでした。通信状況を確認してください。")
+            elif record_id:
+                st.caption("診断結果・観察メモは自動保存されます。")
+            else:
+                st.caption("診断結果は自動保存されました。")
+        else:
+            st.error("診断結果を自動保存できませんでした。接続を確認してください。")
+            if st.button("保存を再試行", key="result_autosave_retry"):
                 st.rerun()
-        with col_history:
-            if st.button("🌱 成長の記録", use_container_width=True, key="result_history"):
-                st.session_state.page = "history_calendar"
-                st.rerun()
-    else:
-        st.caption("メモの入力はできますが、保存するには右上の「ログイン・登録」からログインしてください。")
-        if st.button("↻ もう一度診断する", use_container_width=True, key="result_retry_guest"):
-            st.session_state.pop("diagnosis_observation_memo", None)
-            st.session_state.page = "diagnosis_upload"
+
+        if st.button("成長の記録を見る", use_container_width=True, key="result_history"):
+            st.session_state.page = "history_calendar"
             st.rerun()
+    else:
+        st.caption("ゲスト利用では診断履歴と観察メモは保存されません。")
 
     st.markdown('<div class="result-v2-back"><a href="?back_home=1">← ホームに戻る</a></div>', unsafe_allow_html=True)
 
@@ -3193,7 +3226,7 @@ elif st.session_state.page == "history_calendar":
 
     rows = load_history_rows()
     if not rows:
-        st.info("まだ保存された記録はありません。診断後に記録を保存すると、ここに表示されます。")
+        st.info("まだ記録がありません。ログインした状態で診断すると、結果が自動保存されます。")
         st.stop()
 
     rows_sorted = list(reversed(rows))
@@ -3299,9 +3332,29 @@ elif st.session_state.page == "history_detail":
         unsafe_allow_html=True,
     )
 
-    # 詳細画面だけの調整：写真は小さめ、AI診断結果を優先する。
+    # 詳細画面だけの調整：ヘッダー・日付・写真の間の空白を詰める。
     st.markdown("""
     <style>
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head) {
+        padding-top: .25rem !important;
+        padding-bottom: 1.1rem !important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    > div > div[data-testid="stVerticalBlock"] {
+        gap: .55rem !important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    [data-testid="stDivider"] { margin: .15rem 0 !important; }
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    .history-detail-head { margin: 0 0 8px !important; }
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    .history-detail-head h2 {font-size:24px !important;}
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    .history-detail-section {margin:0 0 7px !important;}
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    .history-detail-advice {margin-top:15px !important;}
+    div[data-testid="stMainBlockContainer"]:has(.history-detail-head)
+    .history-detail-note {margin-top:10px !important;}
     div[data-testid="stMainBlockContainer"]:has(.history-detail-head) [data-testid="stImage"] img {
         max-height: 240px !important;
         max-width: 100% !important;
@@ -3395,17 +3448,10 @@ elif st.session_state.page == "history_detail":
                         st.rerun()
 
     st.markdown('<div class="history-detail-nav-anchor"></div>', unsafe_allow_html=True)
-    nav_col, again_col, _ = st.columns([1, 1, 2], gap="small")
-    with nav_col:
-        if st.button("← 記録一覧に戻る", key="detail_back_to_list", use_container_width=True):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "history_calendar"
-            st.rerun()
-    with again_col:
-        if st.button("もう一度診断する", key="detail_again_diagnosis", use_container_width=True):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "diagnosis_upload"
-            st.rerun()
+    if st.button("← 記録一覧に戻る", key="detail_back_to_list"):
+        st.session_state.force_scroll_top = True
+        st.session_state.page = "history_calendar"
+        st.rerun()
 
 
 # =========================================================
