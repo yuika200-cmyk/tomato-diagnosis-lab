@@ -1677,6 +1677,23 @@ div[data-testid="stButton"] button {
 # =========================================================
 # 共通ヘッダー：どの画面でもログイン・ホームへ戻る操作を表示
 # =========================================================
+# AIモデル改善画面では、マイページへのリンクも「ホームに戻る」と同じ控えめな表示にする。
+if st.session_state.page == "model_improve":
+    st.markdown("""
+    <style>
+    .st-key-header_account_open button {
+        min-height:29px !important;height:29px !important;
+        padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
+        background:transparent !important;color:#52645a !important;
+        border:1px solid #d7e2da !important;border-radius:8px !important;
+        box-shadow:none !important;white-space:nowrap !important;
+    }
+    .st-key-header_account_open button:hover {
+        background:#f3f8f4 !important;color:#247a46 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
 with header_brand:
     st.markdown(
@@ -1693,7 +1710,7 @@ with header_account:
             st.rerun()
     else:
         logged_in = history_cloud.user() is not None
-        if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
+        if st.button(("マイページ" if logged_in else "ログイン・登録") if st.session_state.page == "model_improve" else ("👤 マイページ" if logged_in else "👤 ログイン・登録"), key="header_account_open", use_container_width=True):
             st.session_state.page = "account"
             st.rerun()
 
@@ -3313,11 +3330,9 @@ elif st.session_state.page == "model_improve":
     <style>
       .model-improve-title {font-size:clamp(26px,3vw,34px);font-weight:900;color:#153b2d;margin:0 0 8px;line-height:1.3;}
       .model-improve-desc {font-size:15px;color:#60736a;line-height:1.75;margin-bottom:24px;}
-      .model-improve-icon {height:88px;display:flex;justify-content:center;align-items:center;
-          background:#f0f8f2;border-radius:14px;margin-bottom:14px;font-size:36px;}
-      .model-improve-card-title {font-size:18px;font-weight:850;color:#183e2c;margin-bottom:8px;line-height:1.4;}
-      .model-improve-card-desc {font-size:13px;color:#63766b;line-height:1.65;min-height:46px;margin-bottom:10px;}
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-improve-icon) {
+      .model-improve-card-title {font-size:19px;font-weight:850;color:#183e2c;margin:5px 0 10px;line-height:1.4;}
+      .model-improve-card-desc {font-size:14px;color:#63766b;line-height:1.7;min-height:65px;margin-bottom:10px;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-improve-card-title) {
           background:#fff;border:1px solid #dfebe2;border-radius:17px;
           box-shadow:0 4px 15px rgba(25,100,50,.04);
       }
@@ -3331,7 +3346,7 @@ elif st.session_state.page == "model_improve":
       }
       .model-improve-note {background:#f5f8f6;border:1px solid #e3eae5;border-radius:12px;
           padding:14px 17px;color:#627269;font-size:13px;line-height:1.7;margin-top:20px;}
-      @media(max-width:760px){.model-improve-icon{height:70px}.model-improve-card-desc{min-height:0}}
+      @media(max-width:760px){.model-improve-card-desc{min-height:0}}
     </style>
     <div class="model-improve-title">AIモデルの改善</div>
     <div class="model-improve-desc">学習データを活用してAIモデルを改善し、作成したモデルを共有・利用できます。</div>
@@ -3340,8 +3355,7 @@ elif st.session_state.page == "model_improve":
     gallery_col, register_col, select_col = st.columns(3, gap="medium")
     with gallery_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-icon">🖼️</div>'
-                        '<div class="model-improve-card-title">学習データを利用</div>'
+            st.markdown('<div class="model-improve-card-title">学習データを利用</div>'
                         '<div class="model-improve-card-desc">元の学習写真を閲覧・取得できます。</div>',
                         unsafe_allow_html=True)
             if st.button("学習データを見る", key="improve_gallery", use_container_width=True):
@@ -3350,8 +3364,7 @@ elif st.session_state.page == "model_improve":
                 st.rerun()
     with register_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-icon">🧠</div>'
-                        '<div class="model-improve-card-title">AIモデルを登録</div>'
+            st.markdown('<div class="model-improve-card-title">AIモデルを登録</div>'
                         '<div class="model-improve-card-desc">改善したモデルを登録・共有できます。</div>',
                         unsafe_allow_html=True)
             if st.button("モデルを登録する", key="improve_register", use_container_width=True):
@@ -3360,8 +3373,7 @@ elif st.session_state.page == "model_improve":
                 st.rerun()
     with select_col:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-icon">🌱</div>'
-                        '<div class="model-improve-card-title">モデルを選んで診断</div>'
+            st.markdown('<div class="model-improve-card-title">モデルを選んで診断</div>'
                         '<div class="model-improve-card-desc">標準モデルや登録済みモデルを使って診断できます。</div>',
                         unsafe_allow_html=True)
             if st.button("モデルを選ぶ", key="improve_select", use_container_width=True):
