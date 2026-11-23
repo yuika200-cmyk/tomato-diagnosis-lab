@@ -18,11 +18,44 @@ def show():
     auth._recovery_callback()
 
     st.markdown('''<style>
-    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) { max-width: 800px !important; padding-top:.45rem !important; }
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) { max-width: 780px !important; padding-top:.3rem !important; }
     .login-view-marker {height:0;}
-    .login-heading{text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:5px 0 6px;}
-    .login-explain{text-align:center;color:#64746a;font-size:14px;margin-bottom:12px;}
+    .login-heading{text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:0 0 3px;}
+    .login-explain{text-align:center;color:#64746a;font-size:14px;margin-bottom:5px;}
     .login-foot{text-align:center;color:#728079;font-size:13px;margin:12px 0;}
+    .st-key-account_home_link button {background:transparent!important;border:0!important;box-shadow:none!important;color:#64746a!important;min-height:29px!important;font-size:12px!important;white-space:nowrap!important;}
+    /* 認証画面だけ：既存画面の緑と統一、詰めすぎず短く */
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stVerticalBlock"] {gap:.65rem;}
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stForm"] {margin-top:0!important;}
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind="primary"],
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) button[data-testid="stBaseButton-primary"] {
+        background:linear-gradient(180deg,#31a65a,#218b47)!important;
+        border:1px solid #218b47!important;
+        color:white!important;
+        box-shadow:none!important;
+        min-height:44px!important;
+        border-radius:10px!important;
+        font-size:15px!important;
+        font-weight:750!important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button[kind="primary"]:hover,
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) button[data-testid="stBaseButton-primary"]:hover {
+        background:#1c7e40!important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_google_start button {
+        background:white!important;color:#246c45!important;border:1px solid #a7c6b1!important;
+        box-shadow:none!important;min-height:44px!important;border-radius:10px!important;
+        font-size:14px!important;white-space:nowrap!important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_register button,
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_go_reset button,
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_register_back button,
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) .st-key-auth_reset_back button {
+        background:transparent!important;color:#607169!important;border:0!important;
+        box-shadow:none!important;font-size:13px!important;font-weight:500!important;
+        min-height:32px!important;white-space:normal!important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.login-view-marker) input {font-size:15px!important;}
     div[data-testid="stMainBlockContainer"]:has(.login-view-marker) div[data-testid="stForm"] {border:0!important;padding:0!important;}
     </style><div class="login-view-marker"></div>''', unsafe_allow_html=True)
     _, center, _ = st.columns([1, 2.5, 1])

@@ -1685,15 +1685,22 @@ with header_brand:
         unsafe_allow_html=True,
     )
 with header_account:
-    logged_in = history_cloud.user() is not None
-    if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
-        st.session_state.page = "account"
-        st.rerun()
+    if st.session_state.page == "account":
+        # 認証ページでは重複する「ログイン・登録」ボタンを表示しない。
+        if st.button("← ホームに戻る", key="account_home_link", use_container_width=True):
+            st.session_state.page = "home"
+            st.session_state.force_scroll_top = True
+            st.rerun()
+    else:
+        logged_in = history_cloud.user() is not None
+        if st.button("👤 マイページ" if logged_in else "👤 ログイン・登録", key="header_account_open", use_container_width=True):
+            st.session_state.page = "account"
+            st.rerun()
 
 if st.session_state.page == "select_user":
     st.session_state.page = "diagnosis_upload"
 
-if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result"):
+if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account"):
     # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
     st.markdown("""
     <style>
@@ -1725,6 +1732,8 @@ if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result")
 
 if st.session_state.page == "diagnosis_upload":
     st.markdown('<div class="diagnosis-header-rule"></div>', unsafe_allow_html=True)
+elif st.session_state.page == "account":
+    pass  # ログイン画面には上部の区切り線を表示しない
 else:
     st.divider()
 
