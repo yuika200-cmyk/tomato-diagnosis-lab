@@ -21,18 +21,18 @@ def show():
     st.markdown("""
     <style>
     /* マーカーを含む表示中だけ適用。標準ボタンの大きすぎる装飾を上書きする */
-    .login-view-marker {height:0; margin:0; padding:0;}
+    .login-view-marker {height:12px; margin:0; padding:0;}
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) {
         padding-top: 0.15rem !important;
     }
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stVerticalBlock"] {
-        gap: .48rem !important;
+        gap: .85rem !important;
     }
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stForm"] {
         border: 0 !important; padding: 0 !important; margin:0 !important;
     }
-    .login-heading {text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:0 0 3px;line-height:1.3;}
-    .login-explain {text-align:center;color:#64746a;font-size:14px;margin:0 0 12px;line-height:1.5;}
+    .login-heading {text-align:center;font-size:28px;font-weight:850;color:#174b32;margin:18px 0 12px;line-height:1.45;}
+    .login-explain {text-align:center;color:#64746a;font-size:14px;margin:0 0 18px;line-height:1.75;}
     .login-foot {text-align:center;color:#728079;font-size:13px;margin:12px 0 4px;}
     /* 標準 Streamlit の primary の赤色が残ってしまう問題を確実に回避 */
     [data-testid="stMainBlockContainer"]:has(.login-view-marker) [data-testid="stFormSubmitButton"] button,
