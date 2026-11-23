@@ -2905,6 +2905,31 @@ elif st.session_state.page == "diagnosis_result":
         .result-v2-unified-flag {font-size:10px;padding:3px 4px;}
         .result-v2-unified-comment {font-size:11px;}
       }
+      /* 文字を読みやすくする調整：結果画面のみに適用 */
+      .result-v2-section-title {font-size:22px;line-height:1.4;margin-bottom:10px;}
+      .result-v2-unified-row {font-size:17px;line-height:1.55;padding:12px 8px;gap:12px;}
+      .result-v2-unified-head {font-size:14px;line-height:1.35;padding:8px;}
+      .result-v2-unified-name {font-size:17px;}
+      .result-v2-unified-comment {font-size:14px;line-height:1.5;margin-top:3px;}
+      .result-v2-unified-flag {font-size:14px;padding:5px 9px;}
+      .result-v2-compare-note {font-size:13px;line-height:1.5;margin-top:9px;}
+      .result-v2-advice-title {font-size:22px;}
+      .result-v2-advice-content {font-size:17px;line-height:1.65;padding:12px 14px;}
+      .result-v2-note {font-size:13px;line-height:1.6;}
+      .result-v2-memo-title {font-size:20px;}
+      .result-v2-memo-help {font-size:15px;line-height:1.5;}
+      div[data-testid="stMainBlockContainer"]:has(.result-v2-heading) textarea {
+        font-size:16px !important;line-height:1.55 !important;
+      }
+      @media(max-width:680px) {
+        .result-v2-section-title {font-size:19px;}
+        .result-v2-unified-row {font-size:14px;gap:5px;padding:10px 3px;}
+        .result-v2-unified-name {font-size:14px;}
+        .result-v2-unified-head {font-size:12px;}
+        .result-v2-unified-flag {font-size:11px;padding:3px 5px;}
+        .result-v2-unified-comment {font-size:12px;}
+        .result-v2-advice-content {font-size:16px;}
+      }
       .result-v2-back {text-align:center;margin:7px 0 0;}
       .result-v2-back a {font-size:13px;color:#758079;text-decoration:none;}
       .result-v2-back a:hover {text-decoration:underline;color:#526158;}
