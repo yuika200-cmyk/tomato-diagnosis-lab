@@ -1674,6 +1674,30 @@ div[data-testid="stButton"] button {
     unsafe_allow_html=True,
 )
 
+# 記録一覧：写真がないデータも見やすいカードに整える
+if st.session_state.page == "history_calendar":
+    st.markdown("""
+    <style>
+    .history-v3-title {font-size:29px;font-weight:850;color:#173e2c;margin:4px 0 7px;}
+    .history-v3-lead {color:#697a70;font-size:14px;margin:0 0 24px;line-height:1.65;}
+    .history-v3-date {font-size:18px;font-weight:800;color:#174c32;margin:7px 0 9px;}
+    .history-v3-no-photo {height:128px;border-radius:10px;background:#f2f6f3;
+      display:flex;align-items:center;justify-content:center;color:#88948c;font-size:13px;}
+    .history-v3-diagnosis {font-size:13px;line-height:1.75;color:#30483b;min-height:56px;}
+    .history-v3-muted {font-size:13px;color:#86918a;min-height:56px;}
+    .history-v3-note {font-size:12px;color:#697a70;margin-top:8px;line-height:1.55;}
+    .history-v3-foot {text-align:center;color:#87938c;font-size:12px;margin:25px 0 8px;}
+    .st-key-global_home_navigation button {min-height:29px !important; height:29px !important;
+      padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
+      background:transparent !important;color:#52645a !important;
+      border:1px solid #d7e2da !important;border-radius:8px !important;box-shadow:none !important;}
+    [class*="st-key-detail_"] button {min-height:37px !important;height:37px !important;
+      background:#fff !important;background-image:none !important;color:#248348 !important;
+      border:1px solid #b9d6c2 !important;border-radius:9px !important;box-shadow:none !important;
+      font-size:13px !important;font-weight:700 !important;}
+    [class*="st-key-detail_"] button:hover {background:#eff8f1 !important;}
+    </style>""", unsafe_allow_html=True)
+
 # =========================================================
 # 共通ヘッダー：どの画面でもログイン・ホームへ戻る操作を表示
 # =========================================================
@@ -3139,76 +3163,71 @@ elif st.session_state.page == "diagnosis_result":
 # ⑤ 成長のきろく：アルバム表示
 # =========================================================
 elif st.session_state.page == "history_calendar":
-    st.markdown('<div class="growth-page-title">🌱 成長のきろく</div>', unsafe_allow_html=True)
-    st.markdown('<div class="growth-subtitle">写真をタップすると、くわしい記録が見られます</div>', unsafe_allow_html=True)
+    if st.session_state.get("force_scroll_top", False):
+        force_scroll_top()
+        st.session_state.force_scroll_top = False
+
+    st.markdown('<div class="history-v3-title">成長の記録</div>', unsafe_allow_html=True)
+    st.markdown('<div class="history-v3-lead">保存した診断結果や観察メモを、日付ごとに確認できます。</div>', unsafe_allow_html=True)
 
     rows = load_history_rows()
-
     if not rows:
-        st.warning("保存した成長のきろくはまだありません。")
-        back_link("前のページに戻る", "home")
+        st.info("まだ保存された記録はありません。診断後に記録を保存すると、ここに表示されます。")
         st.stop()
 
     rows_sorted = list(reversed(rows))
-
     if st.session_state.pop("history_delete_success", False):
         st.success("記録を削除しました。")
 
     def first_image_path(row: dict) -> str:
-        for key in ["whole_image_path", "leaf_image_path", "fruit_image_path"]:
-            path_text = row.get(key, "")
-            if path_text and (path_text.startswith("https://") or Path(path_text).exists()):
+        for key in ("whole_image_path", "leaf_image_path", "fruit_image_path"):
+            path_text = row.get(key, "") or ""
+            if isinstance(path_text, str) and (path_text.startswith("https://") or Path(path_text).exists()):
                 return path_text
         return ""
 
     for row_start in range(0, len(rows_sorted), 3):
-        cols = st.columns(3, gap="large")
+        cols = st.columns(3, gap="medium")
         for offset, col in enumerate(cols):
             idx = row_start + offset
             if idx >= len(rows_sorted):
                 continue
-
             row = rows_sorted[idx]
             img_path = first_image_path(row)
             day_text = format_history_date(row.get("created_at", ""))
             with col:
-                st.markdown('<div class="growth-card">', unsafe_allow_html=True)
+                with st.container(border=True):
+                    if img_path:
+                        try:
+                            st.image(img_path, use_container_width=True)
+                        except Exception:
+                            st.markdown('<div class="history-v3-no-photo">写真を表示できません</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="history-v3-no-photo">写真なし</div>', unsafe_allow_html=True)
 
-                if img_path:
-                    st.image(img_path, width="stretch")
-                else:
-                    st.markdown('<div class="growth-image-box">🌱</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="history-v3-date">{escape(day_text)}</div>', unsafe_allow_html=True)
+                    summary = []
+                    for key, label in (("whole", "全体"), ("leaf", "葉"), ("fruit", "実")):
+                        value = row.get(f"{key}_model_label", "")
+                        if value and value not in ("実なし（未診断）", "判定なし"):
+                            summary.append(f"{label}：{value}")
+                    if summary:
+                        st.markdown('<div class="history-v3-diagnosis">' + '<br>'.join(escape(part) for part in summary) + '</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="history-v3-muted">診断結果の記録はありません</div>', unsafe_allow_html=True)
+                    note = (row.get("observation_note", "") or "").strip()
+                    if note:
+                        short_note = note[:55] + ("…" if len(note) > 55 else "")
+                        st.markdown(f'<div class="history-v3-note">メモ：{escape(short_note)}</div>', unsafe_allow_html=True)
 
-                stage, _ = harvest_guidance(row.get("fruit_model_label", ""))
-                st.markdown(
-                    f'<div class="growth-date">{day_text}</div>'
-                    f'<div class="growth-mini">育て始めて {escape(str(row.get("days_grown", "")))}日目　収穫の目安：{recorded_harvest_text(row)}</div>',
-                    unsafe_allow_html=True,
-                )
+                    if st.button("記録を見る", key=f"detail_{idx}", use_container_width=True):
+                        st.session_state.selected_history_index = idx
+                        st.session_state.selected_history_id = row.get("id")
+                        st.session_state.force_scroll_top = True
+                        st.session_state.page = "history_detail"
+                        st.rerun()
 
-                if st.button("くわしく見る", key=f"detail_{idx}", use_container_width=True):
-                    st.session_state.selected_history_index = idx
-                    st.session_state.selected_history_id = row.get("id")
-                    st.session_state.force_scroll_top = True
-                    st.session_state.page = "history_detail"
-                    st.rerun()
-
-                st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="history-action-row">', unsafe_allow_html=True)
-    col_back, col_home = st.columns(2, gap="large")
-
-    with col_back:
-        if st.button("← 診断画面に戻る", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-
-    with col_home:
-        if st.button("🏠 ホームに戻る", use_container_width=True):
-            st.session_state.page = "home"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="history-v3-foot">記録は新しい順に表示しています。</div>', unsafe_allow_html=True)
 
 
 # =========================================================

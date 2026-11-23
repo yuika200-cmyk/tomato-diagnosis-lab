@@ -75,6 +75,20 @@ def show():
     </style>
     <div class="login-view-marker"></div>
     """,unsafe_allow_html=True)
+    # マイページのログアウトは目立たせず、灰色の文字リンクにする。
+    st.markdown("""
+    <style>
+    .st-key-account_logout button,
+    .st-key-account_logout button[kind] {
+        background:transparent !important;background-image:none !important;
+        color:#77847b !important;border:0 !important;box-shadow:none !important;
+        font-size:13px !important;font-weight:500 !important;
+        min-height:32px !important;height:32px !important;
+        padding:2px 8px !important;
+    }
+    .st-key-account_logout button:hover {color:#415c4d !important;background:#f3f7f4 !important;}
+    </style>
+    """, unsafe_allow_html=True)
     # PCではフォームをやや細く、スマホでは自然に全幅表示
     _, center, _ = st.columns([1, 1.7, 1], gap='small')
     with center:
