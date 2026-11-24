@@ -1,5 +1,6 @@
 import os
 import io
+import zipfile
 import base64
 import logging
 import warnings
@@ -3528,6 +3529,44 @@ elif st.session_state.page == "model_improve":
     <div class="model-improve-title">AIモデルの改善</div>
     <div class="model-improve-desc">元のAIモデルを改良したり、作成したモデルを登録・共有したりできます。</div>
     """, unsafe_allow_html=True)
+
+    # 現在のアプリで診断に使っている標準AIモデルを配布する。
+    # Teachable Machineの編集用URLとは異なり、こちらは推論用の書き出しファイル。
+    st.markdown("### 元のAIモデル（標準モデル）")
+    st.caption("このアプリで使っている株全体・葉・実の3モデルを確認できます。")
+    standard_files = [
+        MODEL_DIR / key / filename
+        for key in ("whole", "leaf", "fruit")
+        for filename in ("keras_model.h5", "labels.txt")
+    ]
+    missing_standard_files = [path for path in standard_files if not path.is_file()]
+    if missing_standard_files:
+        st.info("標準モデルのファイルが揃っていないため、ダウンロードは現在利用できません。")
+    else:
+        @st.cache_data(show_spinner=False, max_entries=2)
+        def standard_models_zip(file_versions: tuple) -> bytes:
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+                for relative_path, _mtime, _size in file_versions:
+                    archive.write(MODEL_DIR / relative_path, arcname=f"models/{relative_path}")
+            return buffer.getvalue()
+
+        versions = tuple(
+            (str(path.relative_to(MODEL_DIR)), path.stat().st_mtime_ns, path.stat().st_size)
+            for path in standard_files
+        )
+        with st.expander("元のモデルのファイルを見る・ダウンロードする", expanded=False):
+            for model_key, model_name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
+                st.markdown(f"**{model_name}モデル**　`models/{model_key}/keras_model.h5`・`labels.txt`")
+            st.download_button(
+                "標準モデル3種類をまとめてダウンロード（ZIP）",
+                data=standard_models_zip(versions),
+                file_name="tomato_original_models.zip",
+                mime="application/zip",
+                key="original_models_download",
+                use_container_width=True,
+            )
+            st.caption("これらはアプリで判定するためのモデルファイルです。Teachable Machineで学習を再開するための編集リンクではありません。")
 
     gallery_col, register_col, select_col = st.columns(3, gap="medium")
     with gallery_col:
