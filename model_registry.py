@@ -223,7 +223,19 @@ def show():
                         except (ValueError, TypeError):
                             st.caption("モデルURLを確認できませんでした。")
                         else:
-                            st.link_button("モデルを開く", safe_url, use_container_width=True)
+                            # HTMLリンクも併記して、ボタンがブラウザ環境で反応しない場合も開けるようにする。
+                            st.markdown(
+                                f'<a href="{escape(safe_url, quote=True)}" target="_blank" '
+                                'rel="noopener noreferrer" '
+                                'style="display:block;text-align:center;padding:11px 8px;'
+                                'color:#216b42;background:#ffffff;border:1px solid #b6d3bf;'
+                                'border-radius:9px;font-weight:750;text-decoration:none;">'
+                                'モデルを開く ↗</a>',
+                                unsafe_allow_html=True,
+                            )
+                            with st.expander("モデルURLを確認・コピー"):
+                                st.code(safe_url, language=None)
+                                st.caption("開けない場合はURLをコピーしてブラウザに貼り付けてください。")
                         if st.button("削除", key=f"reg_delete_{row_id}", use_container_width=True):
                             st.session_state.registry_delete_id = row_id
                             st.rerun()
