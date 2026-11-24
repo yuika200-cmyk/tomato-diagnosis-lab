@@ -6,6 +6,8 @@ Does not replace or execute registered models in the standard diagnosis.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from html import escape
 from urllib.parse import urlsplit, urlunsplit
 
@@ -28,6 +30,21 @@ def validate_model_url(value: str) -> str:
     if not match:
         raise ValueError("モデルURLの形式を確認してください。例：https://teachablemachine.withgoogle.com/models/xxxx/")
     return urlunsplit(("https", "teachablemachine.withgoogle.com", f"/models/{match.group(1)}/", "", ""))
+
+
+def format_registered_at(value: str) -> str:
+    """Supabase UTC timestamp -> Japan local date and time."""
+    if not value:
+        return "登録日時：不明"
+    try:
+        raw = str(value).strip()
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(ZoneInfo("Asia/Tokyo"))
+        return f"登録：{dt.year}年{dt.month}月{dt.day}日 {dt:%H:%M}"
+    except (ValueError, TypeError, OverflowError):
+        return "登録日時：不明"
 
 
 def _set_page(page: str):
@@ -56,6 +73,24 @@ def _styles():
         border:1px solid #d6e9da;border-radius:6px;padding:3px 9px;}
       .model-reg-row {display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:4px;}
       .model-reg-footnote {color:#738279;font-size:12px;line-height:1.6;margin-top:4px;}
+      .model-reg-card-marker {display:none;}
+      .model-reg-date {font-size:12px;color:#64786c;line-height:1.65;margin:10px 0 1px;}
+      .model-reg-card-heading {display:flex;justify-content:space-between;align-items:flex-start;
+        gap:8px;flex-wrap:wrap;min-height:44px;}
+      .model-reg-card-heading .model-reg-name {flex:1;min-width:110px;font-size:17px;line-height:1.45;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-reg-card-marker) {
+        background:rgba(255,255,255,.94)!important;
+        border:1px solid #dfe8e2!important;
+        border-radius:13px!important;
+        box-shadow:none!important;
+        padding:14px 15px!important;
+        height:100%;
+      }
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-reg-card-marker)
+        [data-testid="stVerticalBlock"] {gap:.55rem!important;}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [class*="st-key-reg_delete_"] button {background:#fff!important;}
+      @media(max-width:650px){.model-reg-card-heading .model-reg-name{font-size:16px;}}
       div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
         div[data-testid="stVerticalBlockBorderWrapper"] {border-radius:12px!important;
         border-color:#dfe7e1!important;box-shadow:none!important;}
@@ -162,42 +197,52 @@ def show():
     if rows == []:
         st.caption("登録したモデルはまだありません。")
     elif rows is not None:
-        for row in rows:
-            row_id = str(row["id"])
-            with st.container(border=True):
-                st.markdown(
-                    '<div class="model-reg-row">'
-                    f'<span class="model-reg-name">{escape(str(row.get("name", "")))}</span>'
-                    f'<span class="model-reg-type">{escape(str(row.get("model_type", "")))}</span>'
-                    '</div>', unsafe_allow_html=True)
-                open_col, delete_col = st.columns([4, 1], gap="small")
-                with open_col:
-                    try:
-                        safe_url = validate_model_url(row.get("model_url", ""))
-                    except (ValueError, TypeError):
-                        st.caption("モデルURLを確認できませんでした。")
-                    else:
-                        st.link_button("モデルを開く", safe_url, use_container_width=True)
-                with delete_col:
-                    if st.button("削除", key=f"reg_delete_{row_id}", use_container_width=True):
-                        st.session_state.registry_delete_id = row_id
-                if st.session_state.get("registry_delete_id") == row_id:
-                    st.caption("このモデルの登録を削除しますか？")
-                    confirm_col, cancel_col = st.columns(2, gap="small")
-                    with confirm_col:
-                        if st.button("削除する", key=f"registry_confirm_{row_id}", use_container_width=True):
-                            try:
-                                (db.table(TABLE).delete().eq("id", row_id)
-                                 .eq("user_id", str(user.id)).execute())
-                            except Exception:
-                                st.error("削除できませんでした。")
-                            else:
+        # Three cards per row on desktop; Streamlit stacks columns on narrow phones.
+        for group_start in range(0, len(rows), 3):
+            card_columns = st.columns(3, gap="small")
+            for position, column in enumerate(card_columns):
+                idx = group_start + position
+                if idx >= len(rows):
+                    continue
+                row = rows[idx]
+                row_id = str(row["id"])
+                with column:
+                    with st.container(border=True):
+                        st.markdown(
+                            '<span class="model-reg-card-marker"></span>'
+                            '<div class="model-reg-card-heading">'
+                            f'<span class="model-reg-name">{escape(str(row.get("name", "")))}</span>'
+                            f'<span class="model-reg-type">{escape(str(row.get("model_type", "")))}</span>'
+                            '</div>'
+                            '<div class="model-reg-date">'
+                            f'{escape(format_registered_at(row.get("created_at", "")))}'
+                            '</div>', unsafe_allow_html=True,
+                        )
+                        try:
+                            safe_url = validate_model_url(row.get("model_url", ""))
+                        except (ValueError, TypeError):
+                            st.caption("モデルURLを確認できませんでした。")
+                        else:
+                            st.link_button("モデルを開く", safe_url, use_container_width=True)
+                        if st.button("削除", key=f"reg_delete_{row_id}", use_container_width=True):
+                            st.session_state.registry_delete_id = row_id
+                            st.rerun()
+                        if st.session_state.get("registry_delete_id") == row_id:
+                            st.caption("このモデルの登録を削除しますか？")
+                            if st.button("削除する", key=f"registry_confirm_{row_id}",
+                                         type="secondary", use_container_width=True):
+                                try:
+                                    (db.table(TABLE).delete().eq("id", row_id)
+                                     .eq("user_id", str(user.id)).execute())
+                                except Exception:
+                                    st.error("削除できませんでした。")
+                                else:
+                                    st.session_state.pop("registry_delete_id", None)
+                                    st.rerun()
+                            if st.button("キャンセル", key=f"registry_cancel_{row_id}",
+                                         use_container_width=True):
                                 st.session_state.pop("registry_delete_id", None)
                                 st.rerun()
-                    with cancel_col:
-                        if st.button("キャンセル", key=f"registry_cancel_{row_id}", use_container_width=True):
-                            st.session_state.pop("registry_delete_id", None)
-                            st.rerun()
 
     st.divider()
     if st.button("← 1ページ前に戻る", key="registry_back"):
