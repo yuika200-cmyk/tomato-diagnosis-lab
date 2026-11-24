@@ -1,114 +1,174 @@
-"""Teachable Machine model proposals backed by the existing Supabase RLS.
+"""Private Teachable Machine URL registry for the tomato diagnosis app.
 
-No model supplied by a user is downloaded or executed here. Proposals do not
-modify the production diagnosis models, and approval is managed separately.
+Requires Supabase SQL setup in model_registry_setup.sql.  Only authenticated
+users can access their own rows (DB RLS).  Registration does not deploy a model
+or alter the standard inference pipeline.
 """
+from __future__ import annotations
+
 import re
+from urllib.parse import urlsplit, urlunsplit
 
 import streamlit as st
 import history_cloud
 
-MODEL_URL_PATTERN = re.compile(
-    r"^https://teachablemachine\.withgoogle\.com/models/[A-Za-z0-9_-]+/?$"
-)
-CATEGORIES = {
-    "whole": "株全体",
-    "leaf": "葉",
-    "fruit": "実",
-    "pest": "病害虫",
-    "other": "その他（新しい診断項目）",
-}
-STATUSES = {"pending": "審査待ち", "approved": "承認済み", "rejected": "不採用"}
+TABLE = 'model_registrations'
+MODEL_TYPES = ('株全体', '葉', '実')
+_MODEL_ID_RE = re.compile(r'^/models/([A-Za-z0-9_-]+)/?$')
 
 
-def _safe_error(message):
-    # Do not show raw DB/API responses that might expose account information.
-    st.error(message)
+def validate_model_url(value: str) -> str:
+    """Accept only exported Teachable Machine model links, no query/fragment."""
+    s = value.strip()
+    p = urlsplit(s)
+    if p.scheme != 'https' or p.hostname != 'teachablemachine.withgoogle.com':
+        raise ValueError('Teachable Machineで発行されたモデルURLを入力してください。')
+    if p.username or p.password or p.port or p.query or p.fragment:
+        raise ValueError('モデルURLに余分な情報が含まれています。')
+    match = _MODEL_ID_RE.fullmatch(p.path)
+    if not match:
+        raise ValueError('「https://teachablemachine.withgoogle.com/models/…/」の形式で入力してください。')
+    return urlunsplit(('https', 'teachablemachine.withgoogle.com', f'/models/{match.group(1)}/', '', ''))
 
 
-def _list_models():
-    # Row-level security restricts this to the current user's proposals and
-    # approved models. Never use a service-role key in a public Streamlit app.
-    response = (
-        history_cloud.client().table("ai_models")
-        .select("id,model_name,model_url,model_type,category,description,labels,status,created_at,training_image_count,validation_accuracy,validation_image_count")
-        .order("created_at", desc=True).limit(100).execute()
-    )
-    return response.data or []
+def _client_and_user():
+    try:
+        return history_cloud.client(), history_cloud.user()
+    except Exception:
+        return None, None
+
+
+def _set_page(page: str):
+    st.session_state.page = page
+    st.session_state.force_scroll_top = True
+    st.rerun()
+
+
+def _styles():
+    st.markdown('''
+    <style>
+      div[data-testid="stMainBlockContainer"]:has(.registry-title) {
+        padding-top: .35rem !important; padding-bottom: 1rem !important;
+        max-width: 950px !important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.registry-title) > div > div[data-testid="stVerticalBlock"] {
+        gap: .65rem !important;
+      }
+      .registry-eyebrow {font-size:12px;color:#6b7d71;font-weight:700;margin:2px 0 7px;}
+      .registry-title {font-size:clamp(25px,3vw,32px);font-weight:850;line-height:1.3;color:#173b2b;margin:0 0 6px;}
+      .registry-lead {font-size:14px;color:#60736a;line-height:1.7;margin:0 0 16px;}
+      .registry-section {font-size:19px;font-weight:850;color:#173b2b;margin:5px 0 4px;}
+      .registry-help {font-size:13px;color:#687a6e;line-height:1.7;margin:2px 0 12px;}
+      .registry-row {display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;}
+      .registry-model-name {font-size:16px;font-weight:800;color:#174530;overflow-wrap:anywhere;}
+      .registry-meta {color:#718177;font-size:12px;}
+      .registry-info {background:#f5f9f6;border:1px solid #e0e9e2;border-radius:10px;
+        padding:11px 14px;color:#617469;font-size:13px;line-height:1.65;margin:5px 0 12px;}
+      div[data-testid="stMainBlockContainer"]:has(.registry-title) [data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius:13px!important;box-shadow:none!important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.registry-title) .stButton button,
+      div[data-testid="stMainBlockContainer"]:has(.registry-title) .stLinkButton a {
+        border-radius:9px!important;min-height:42px!important;font-size:14px!important;box-shadow:none!important;
+      }
+      .st-key-registry_submit button {background:#23854b!important;color:white!important;border:0!important;}
+      .st-key-registry_back button {background:transparent!important;color:#62756a!important;border:1px solid #d6e2da!important;}
+      @media(max-width:650px){.registry-lead{font-size:13px}.registry-title{font-size:25px}}
+    </style>
+    ''', unsafe_allow_html=True)
 
 
 def show():
-    st.title("🧠 AIモデルを登録・確認する")
-    st.write("Teachable Machineで作成したモデルを提案できます。既存モデルの改良も、新しい診断項目の追加も歓迎します。")
-    st.info("登録したモデルは審査待ちになります。現在の全体・葉・実の診断モデルは自動では変更されません。")
-    current = history_cloud.user()
-    if current is None:
-        st.warning("AIモデルの登録・一覧表示にはログインが必要です。画面上部の「会員登録・ログイン」からログインしてください。")
-        return
-    if not history_cloud.configured():
-        st.error("Supabaseが設定されていません。")
+    _styles()
+    st.markdown('''<div class="registry-eyebrow">AIの開発・改善 / モデル登録</div>
+    <div class="registry-title">AIモデルを登録する</div>
+    <div class="registry-lead">Teachable Machineで作成したモデルのURLを登録できます。登録したモデルは、自分の一覧からいつでも開けます。</div>''', unsafe_allow_html=True)
+
+    db, user = _client_and_user()
+    if db is None or user is None:
+        st.info('モデルの登録にはログインが必要です。登録したモデルは自分だけに表示されます。')
+        if st.button('ログイン・登録へ', key='registry_login', use_container_width=True):
+            _set_page('account')
+        if st.button('← 1ページ前に戻る', key='registry_back'):
+            _set_page('model_improve')
         return
 
-    with st.expander("➕ 新しいAIモデルを提案する", expanded=True):
-        with st.form("ai_model_proposal_form", clear_on_submit=True):
-            model_name = st.text_input("モデル名 *", max_chars=120, placeholder="例：葉の黄化判定モデル Ver.2")
-            model_type_display = st.radio("登録するモデルの種類 *", ["既存モデルの改良", "新しい診断項目"], horizontal=True)
-            category = st.selectbox("診断分野 *", options=list(CATEGORIES), format_func=lambda k: CATEGORIES[k])
-            url = st.text_input("Teachable Machineの公開モデルURL *", max_chars=300, placeholder="https://teachablemachine.withgoogle.com/models/xxxxxx/")
-            description = st.text_area("モデルの説明", max_chars=1200, placeholder="どんな写真で学習したか、どの状態を分類するかなど")
-            labels_raw = st.text_input("分類名（任意・カンマ区切り）", max_chars=800, placeholder="良好, 黄化, 虫食い")
-            count = st.number_input("学習画像の枚数（任意・不明なら0）", min_value=0, max_value=1000000, step=1, value=0)
-            st.caption("分類名・学習枚数は登録者の申告内容です。精度が検証されたことを意味しません。")
-            submitted = st.form_submit_button("審査待ちとして登録する", use_container_width=True)
-        if submitted:
-            name = model_name.strip()
-            cleaned_url = url.strip()
-            labels = [x.strip() for x in labels_raw.replace("、", ",").split(",") if x.strip()]
-            if not (1 <= len(name) <= 120):
-                st.warning("モデル名を入力してください。")
-            elif not MODEL_URL_PATTERN.fullmatch(cleaned_url):
-                st.warning("Teachable Machineの公開モデルURLを確認してください。")
-            elif len(labels) > 30 or any(len(label) > 80 for label in labels):
-                st.warning("分類名は最大30個・各80文字以内にしてください。")
-            elif model_type_display == "既存モデルの改良" and category not in ("whole", "leaf", "fruit"):
-                st.warning("既存モデルの改良では、株全体・葉・実から選んでください。")
+    st.markdown('<div class="registry-section">新しいモデルを登録</div>', unsafe_allow_html=True)
+    st.markdown('<div class="registry-help">入力するのは3項目だけです。Teachable Machineの「モデルをエクスポート」から共有用リンクをコピーしてください。</div>', unsafe_allow_html=True)
+    with st.form('registry_add_model', clear_on_submit=True, border=True):
+        model_name = st.text_input('モデル名', max_chars=80, placeholder='例：葉の黄化を判定するモデル')
+        model_type = st.selectbox('モデルの種類', MODEL_TYPES)
+        model_url = st.text_input('Teachable MachineのモデルURL', placeholder='https://teachablemachine.withgoogle.com/models/.../')
+        st.caption('モデルのURLは公開され得ます。個人情報を含むデータや、共有できないモデルは登録しないでください。')
+        submitted = st.form_submit_button('モデルを登録する', use_container_width=True, type='primary')
+
+    if submitted:
+        name = model_name.strip()
+        if not name:
+            st.warning('モデル名を入力してください。')
+        else:
+            try:
+                url = validate_model_url(model_url)
+                db.table(TABLE).insert({'user_id': str(user.id), 'name': name, 'model_type': model_type, 'model_url': url}).execute()
+            except ValueError as exc:
+                st.warning(str(exc))
+            except Exception:
+                st.error('保存できませんでした。データベース設定や通信状況を確認してください。')
             else:
-                payload = {
-                    "user_id": str(current.id),
-                    "model_name": name,
-                    "model_url": cleaned_url,
-                    "model_type": "improvement" if model_type_display == "既存モデルの改良" else "new",
-                    "category": category,
-                    "description": description.strip(),
-                    "labels": labels,
-                    "training_image_count": int(count) if count else None,
-                    "status": "pending",
-                }
-                try:
-                    history_cloud.client().table("ai_models").insert(payload).execute()
-                except Exception:
-                    _safe_error("モデルを登録できませんでした。ai_models テーブルとRLS設定、通信状況をご確認ください。")
-                else:
-                    st.success("モデルの提案を登録しました。現在の診断には反映されていません。")
+                st.success('モデルを登録しました。下の一覧から確認できます。')
 
-    st.subheader("📚 登録モデル一覧")
-    st.caption("自分が登録したモデルと承認済みモデルだけが表示されます。")
+    st.markdown('<div class="registry-section">登録したモデル</div>', unsafe_allow_html=True)
     try:
-        rows = _list_models()
+        result = db.table(TABLE).select('id,name,model_type,model_url,created_at').eq('user_id', str(user.id)).order('created_at', desc=True).execute()
+        rows = result.data or []
     except Exception:
-        _safe_error("モデル一覧を取得できませんでした。ai_models テーブルとRLS設定をご確認ください。")
-        return
-    if not rows:
-        st.info("表示できるモデルはまだありません。最初のモデルを登録してみよう！")
-        return
-    for entry in rows:
-        title = entry.get("model_name", "名称未設定")
-        with st.expander(f"{STATUSES.get(entry.get('status'), '状態不明')}｜{title}"):
-            st.write(f"**診断分野:** {CATEGORIES.get(entry.get('category'), entry.get('category', '不明'))}")
-            st.write(f"**種類:** {'改良モデル' if entry.get('model_type') == 'improvement' else '新しい診断項目'}")
-            st.write(f"**説明:** {entry.get('description') or '説明なし'}")
-            st.write(f"**分類名（申告）:** {', '.join(entry.get('labels') or []) or '未登録'}")
-            if entry.get('training_image_count') is not None:
-                st.write(f"**学習画像枚数（申告）:** {entry['training_image_count']}")
-            st.code(entry.get("model_url", ""), language=None)
-            st.caption("モデルのURL・説明は投稿者が入力した情報です。外部モデルの安全性や精度は未検証です。")
+        st.warning('登録モデルの一覧を読み込めませんでした。Supabaseに「model_registrations」テーブルがあるか確認してください。')
+        rows = None
+
+    if rows == []:
+        st.caption('登録したモデルはまだありません。上のフォームから追加できます。')
+    elif rows is not None:
+        for row in rows:
+            with st.container(border=True):
+                st.markdown(
+                    '<div class="registry-row"><span class="registry-model-name">' + _escape(row.get('name', '')) +
+                    '</span><span class="registry-meta">' + _escape(row.get('model_type', '')) + '</span></div>',
+                    unsafe_allow_html=True,
+                )
+                url = row.get('model_url', '')
+                try:
+                    url = validate_model_url(url)
+                except (ValueError, TypeError):
+                    st.caption('モデルURLが無効です。')
+                    continue
+                first, second = st.columns([3, 1], gap='small')
+                with first:
+                    st.link_button('モデルを開く ↗', url, use_container_width=True)
+                with second:
+                    if st.button('削除', key=f'registry_delete_request_{row["id"]}', use_container_width=True, type='secondary'):
+                        st.session_state.registry_delete_id = row['id']
+                if st.session_state.get('registry_delete_id') == row['id']:
+                    st.warning('このモデルの登録を削除しますか？（Teachable Machine上のモデルは削除されません）')
+                    yes, no = st.columns(2)
+                    with yes:
+                        if st.button('削除する', key=f'registry_confirm_{row["id"]}', use_container_width=True):
+                            try:
+                                db.table(TABLE).delete().eq('id', row['id']).eq('user_id', str(user.id)).execute()
+                            except Exception:
+                                st.error('削除に失敗しました。')
+                            else:
+                                st.session_state.pop('registry_delete_id', None)
+                                st.rerun()
+                    with no:
+                        if st.button('やめる', key=f'registry_cancel_{row["id"]}', use_container_width=True):
+                            st.session_state.pop('registry_delete_id', None)
+                            st.rerun()
+
+    st.markdown('<div class="registry-info">登録したモデルは、現在の標準AI診断を自動では置き換えません。登録モデルによる診断と比較機能は今後実装します。</div>', unsafe_allow_html=True)
+    if st.button('← 1ページ前に戻る', key='registry_back'):
+        _set_page('model_improve')
+
+
+def _escape(text):
+    from html import escape
+    return escape(str(text), quote=True)
