@@ -1721,20 +1721,75 @@ if st.session_state.page == "history_calendar":
     </style>""", unsafe_allow_html=True)
 
 # =========================================================
-# 共通ヘッダー：どの画面でもログイン・ホームへ戻る操作を表示
+# 共通ナビゲーション：ロゴでホーム、最下部で1ページ前へ
 # =========================================================
-# 全ページ共通：ログイン・登録／マイページは控えめな枠線ボタンに統一。
-# ほかの画面で設定したボタン色に影響されないようキーで限定する。
+# ページ移動履歴はセッションごとに保持します。
+# 既存の各ページによる page 変更は、次の再実行時に自動的に検知します。
+if "nav_history" not in st.session_state:
+    st.session_state.nav_history = []
+if "nav_last_page" not in st.session_state:
+    st.session_state.nav_last_page = st.session_state.page
+
+if st.session_state.page == "select_user":
+    st.session_state.page = "diagnosis_upload"
+
+if st.session_state.page != st.session_state.nav_last_page:
+    previous = st.session_state.nav_last_page
+    if st.session_state.page == "home":
+        st.session_state.nav_history = []
+    elif previous and previous != st.session_state.page:
+        st.session_state.nav_history.append(previous)
+    st.session_state.nav_last_page = st.session_state.page
+
+
+def go_home() -> None:
+    st.session_state.nav_history = []
+    st.session_state.nav_last_page = "home"
+    st.session_state.page = "home"
+    st.session_state.force_scroll_top = True
+    st.rerun()
+
+
+def go_back() -> None:
+    history = st.session_state.nav_history
+    previous = history.pop() if history else "home"
+    # ホームや戻り操作を新しい進行履歴として記録しない。
+    st.session_state.nav_last_page = previous
+    st.session_state.page = previous
+    st.session_state.force_scroll_top = True
+    st.rerun()
+
+
+def bottom_back_button() -> None:
+    if st.session_state.page == "home":
+        return
+    st.markdown('<div class="app-bottom-nav-spacer"></div>', unsafe_allow_html=True)
+    if st.button("← 1ページ前に戻る", key="shared_bottom_back", use_container_width=True):
+        go_back()
+
 st.markdown("""
 <style>
-.st-key-header_account_open button,
-.st-key-header_account_open button[kind],
-.st-key-account_home_link button {
-    min-height:29px !important;
-    height:29px !important;
-    padding:2px 7px !important;
+.st-key-app_brand_home button {
+    background:transparent !important;
+    background-image:none !important;
+    border:0 !important;
+    box-shadow:none !important;
+    color:#165237 !important;
+    font-size:clamp(18px,2.6vw,27px) !important;
+    font-weight:900 !important;
+    letter-spacing:0 !important;
+    padding:4px 1px !important;
+    min-height:35px !important;
+    text-align:left !important;
+    justify-content:flex-start !important;
+    white-space:nowrap !important;
+}
+.st-key-app_brand_home button:hover {color:#208c49 !important; background:transparent !important;}
+.st-key-header_account_open button {
+    min-height:34px !important;
+    padding:3px 7px !important;
     font-size:11px !important;
-    font-weight:600 !important;
+    font-weight:650 !important;
     background:transparent !important;
     color:#52645a !important;
     border:1px solid #d7e2da !important;
@@ -1742,83 +1797,34 @@ st.markdown("""
     box-shadow:none !important;
     white-space:nowrap !important;
 }
-.st-key-header_account_open button:hover,
-.st-key-account_home_link button:hover {
+.app-bottom-nav-spacer {height:20px;}
+.st-key-shared_bottom_back button {
+    background:transparent !important;
+    color:#62756a !important;
+    border:1px solid #d7e2da !important;
+    box-shadow:none !important;
+    border-radius:9px !important;
+    min-height:40px !important;
+    font-size:14px !important;
+    font-weight:650 !important;
+}
+.st-key-shared_bottom_back button:hover {
     background:#f3f8f4 !important;
     color:#247a46 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-if st.session_state.page == "model_improve":
-    # モデル改善画面：ブランドとナビゲーションを一段にまとめる
-    header_brand, header_account, header_home = st.columns([5, 1.25, 1.4], vertical_alignment="center", gap="small")
-    with header_brand:
-        st.markdown(
-            '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
-            'color:#165237;padding:3px 0;">AI生育診断アプリ</div>',
-            unsafe_allow_html=True,
-        )
-    with header_account:
+brand_col, account_col = st.columns([3, 1], gap="small", vertical_alignment="center")
+with brand_col:
+    if st.button("🌱 AI生育診断アプリ", key="app_brand_home", help="ホーム画面へ戻る"):
+        go_home()
+with account_col:
+    if st.session_state.page != "account":
         logged_in = history_cloud.user() is not None
-        if st.button("マイページ" if logged_in else "ログイン・登録", key="header_account_open", use_container_width=True):
+        if st.button("マイページ" if logged_in else "ログイン・登録",
+                     key="header_account_open", use_container_width=True):
             st.session_state.page = "account"
-            st.rerun()
-    with header_home:
-        if st.button("← ホームに戻る", key="global_home_navigation", use_container_width=True):
-            st.session_state.page = "home"
-            st.session_state.force_scroll_top = True
-            st.rerun()
-else:
-    header_brand, header_account = st.columns([3, 1], vertical_alignment="center")
-    with header_brand:
-        st.markdown(
-            '<div style="font-size:clamp(20px,2.6vw,28px);font-weight:900;'
-            'color:#165237;padding:6px 0;">AI生育診断アプリ</div>',
-            unsafe_allow_html=True,
-        )
-    with header_account:
-        if st.session_state.page == "account":
-            if st.button("← ホームに戻る", key="account_home_link", use_container_width=True):
-                st.session_state.page = "home"
-                st.session_state.force_scroll_top = True
-                st.rerun()
-        else:
-            logged_in = history_cloud.user() is not None
-            if st.button("マイページ" if logged_in else "ログイン・登録", key="header_account_open", use_container_width=True):
-                st.session_state.page = "account"
-                st.rerun()
-
-if st.session_state.page == "select_user":
-    st.session_state.page = "diagnosis_upload"
-
-if st.session_state.page not in ("home", "diagnosis_upload", "diagnosis_result", "account", "model_improve", "history_detail"):
-    # 右端の細い列に配置することで、CSS依存の右寄せ失敗を防ぐ
-    st.markdown("""
-    <style>
-      .st-key-global_home_navigation button {
-          min-height:29px !important;
-          height:29px !important;
-          padding:2px 7px !important;
-          font-size:11px !important;
-          font-weight:600 !important;
-          white-space:nowrap !important;
-          background:transparent !important;
-          color:#52645a !important;
-          border:1px solid #d7e2da !important;
-          border-radius:8px !important;
-          box-shadow:none !important;
-      }
-      .st-key-global_home_navigation button:hover {
-          background:#f3f8f4 !important;
-          color:#247a46 !important;
-      }
-    </style>
-    """, unsafe_allow_html=True)
-    _, home_nav_column = st.columns([8, 1.6], gap="small", vertical_alignment="center")
-    with home_nav_column:
-        if st.button("← ホームに戻る", key="global_home_navigation", use_container_width=True):
-            st.session_state.page = "home"
             st.session_state.force_scroll_top = True
             st.rerun()
 
@@ -2905,9 +2911,6 @@ elif st.session_state.page == "diagnosis_upload":
                 st.session_state.page = "diagnosis_result"
                 st.rerun()
 
-    # 最下部には、目立つボタンではなく小さな灰色のテキストリンクを置く。
-    st.markdown('<div class="diagnosis-back-link"><a href="?back_home=1">← ホームに戻る</a></div>',
-                unsafe_allow_html=True)
 
 
 # =========================================================
@@ -2921,7 +2924,7 @@ elif st.session_state.page == "diagnosis_result":
 
     if record is None:
         st.warning("まだ診断記録がありません。")
-        back_link("ホームに戻る", "home")
+        bottom_back_button()
         st.stop()
 
     # この画面にだけ適用するCSS。既存のホーム・写真アップロード画面は変更しない。
@@ -3210,7 +3213,6 @@ elif st.session_state.page == "diagnosis_result":
     else:
         st.caption("ゲスト利用では診断履歴と観察メモは保存されません。")
 
-    st.markdown('<div class="result-v2-back"><a href="?back_home=1">← ホームに戻る</a></div>', unsafe_allow_html=True)
 
 
 # =========================================================
@@ -3227,6 +3229,7 @@ elif st.session_state.page == "history_calendar":
     rows = load_history_rows()
     if not rows:
         st.info("まだ記録がありません。ログインした状態で診断すると、結果が自動保存されます。")
+        bottom_back_button()
         st.stop()
 
     rows_sorted = list(reversed(rows))
@@ -3473,18 +3476,6 @@ elif st.session_state.page == "history_detail":
                         st.session_state.page = "history_calendar"
                         st.rerun()
 
-    st.markdown('<div class="history-detail-nav-anchor"></div>', unsafe_allow_html=True)
-    back_col, home_col = st.columns(2, gap="small")
-    with back_col:
-        if st.button("← 記録一覧に戻る", key="detail_back_to_list", use_container_width=True):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "history_calendar"
-            st.rerun()
-    with home_col:
-        if st.button("← ホームに戻る", key="detail_bottom_home", use_container_width=True):
-            st.session_state.force_scroll_top = True
-            st.session_state.page = "home"
-            st.rerun()
 
 
 # =========================================================
@@ -3585,10 +3576,6 @@ elif st.session_state.page == "model_choice":
             st.session_state.force_scroll_top = True
             st.rerun()
     st.info("登録されたモデルへの切り替えは、モデルの読み込み・分類名との対応付けを実装後に利用できます。")
-    if st.button("← AIモデルの改善に戻る", key="back_model_improve"):
-        st.session_state.page = "model_improve"
-        st.session_state.force_scroll_top = True
-        st.rerun()
 
 # =========================================================
 # ⑦ AIモデル登録・一覧（既存診断機能とは独立）
@@ -3605,3 +3592,5 @@ elif st.session_state.page == "training_gallery":
 # =========================================================
 elif st.session_state.page == "bulk_classifier":
     bulk_classifier.show(load_tm_model, load_tm_labels)
+# 全ページ共通の最下部ナビゲーション。各ページの内容の後に表示。
+bottom_back_button()
