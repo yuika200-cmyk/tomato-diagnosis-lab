@@ -3576,108 +3576,103 @@ elif st.session_state.page == "training_gallery":
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
-    # AIモデルの改善トップ画面は変更せず、元のモデルを見る画面だけを改善。
+    # 元のAIモデルの入口。分類詳細や画像はここでは表示しない。
+    # 元プロジェクトのURLが未設定の場合、編集可能だと誤認させない。
+    original_models = (
+        ("whole", "株全体モデル", "株の生育状態を判定するモデル"),
+        ("leaf", "葉モデル", "葉の色や状態を判定するモデル"),
+        ("fruit", "実モデル", "実の成長段階を判定するモデル"),
+    )
+
+    def get_original_tm_project_url(model_key: str) -> str:
+        config_key = f"TM_PROJECT_{model_key.upper()}_URL"
+        url = os.environ.get(config_key, "").strip()
+        if not url:
+            try:
+                url = str(st.secrets.get(config_key, "") or "").strip()
+            except (FileNotFoundError, KeyError):
+                pass
+        # Teachable MachineのURLのみを許可（任意のURLへ誘導しない）。
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return url if parsed.scheme == "https" and parsed.hostname == "teachablemachine.withgoogle.com" else ""
+
     st.markdown("""
     <style>
-      .original-kicker {font-size:12px;color:#628174;font-weight:700;margin:12px 0 7px;}
-      .original-title {font-size:clamp(25px,3vw,33px);font-weight:850;color:#173b2b;margin:0 0 8px;line-height:1.3;}
-      .original-sub {font-size:14px;color:#62766b;line-height:1.7;margin-bottom:20px;}
-      .original-section {font-size:17px;font-weight:850;color:#193d2d;margin:10px 0 8px;}
-      .original-detail-title {font-size:22px;font-weight:850;color:#173b2b;margin:3px 0 7px;}
-      .original-detail-sub {font-size:14px;color:#65766b;margin-bottom:11px;line-height:1.65;}
-      .original-classes {display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px;}
-      .original-class {display:inline-block;padding:6px 11px;border:1px solid #dbe9df;border-radius:18px;
-                       background:#f6faf7;color:#21543a;font-size:13px;font-weight:650;}
-      .original-note {font-size:12px;line-height:1.7;color:#687c70;margin:8px 0;}
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.original-detail-title) {
-          background:#fff!important;border:1px solid #dce7df!important;
-          border-radius:14px!important;box-shadow:none!important;}
-      .st-key-original_select_whole button,.st-key-original_select_leaf button,.st-key-original_select_fruit button {
-          min-height:74px!important;border-radius:12px!important;font-size:15px!important;
-          box-shadow:none!important;background:#fff!important;color:#1f4a33!important;
-          border:1px solid #dce7df!important;text-align:left!important;
-          justify-content:flex-start!important;padding:12px 15px!important;white-space:normal!important;
+      div[data-testid="stMainBlockContainer"]:has(.original-cards-page) {
+        padding-top: .35rem !important;
+        padding-bottom: 1.25rem !important;
+        max-width: 1050px !important;
       }
-      .st-key-original_select_whole button:hover,.st-key-original_select_leaf button:hover,.st-key-original_select_fruit button:hover {
-          background:#f1f8f3!important;border-color:#90bea0!important;
+      div[data-testid="stMainBlockContainer"]:has(.original-cards-page)
+      > div > div[data-testid="stVerticalBlock"] {gap: .75rem !important;}
+      .original-cards-page {height:0;}
+      .original-cards-kicker {font-size:12px;font-weight:700;color:#698074;margin:0 0 6px;}
+      .original-cards-title {font-size:clamp(25px,3vw,32px);font-weight:850;
+                             color:#173b2b;line-height:1.25;margin:0 0 8px;}
+      .original-cards-lead {font-size:14px;color:#617469;line-height:1.65;margin:0 0 15px;}
+      .original-model-name {font-size:19px;font-weight:850;color:#19412e;margin:0 0 7px;}
+      .original-model-description {font-size:13px;color:#64776d;line-height:1.65;min-height:46px;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.original-model-name) {
+        background:#fff !important;
+        border:1px solid #dce7df !important;
+        border-radius:13px !important;
+        box-shadow:none !important;
+        padding:9px 8px 7px !important;
       }
-      .st-key-original_active button {background:#eff8f1!important;border:2px solid #27864d!important;}
-      .st-key-original_open_tm a {min-height:44px!important;border-radius:9px!important;
-          background:#246d45!important;color:white!important;border:1px solid #246d45!important;
-          box-shadow:none!important;font-weight:750!important;text-decoration:none!important;}
-      @media (max-width:650px){.original-title{font-size:25px}.original-sub{margin-bottom:12px}}
+      .original-cards-note {font-size:13px;line-height:1.7;color:#62736a;
+                            padding:13px 15px;border:1px solid #e4ebe6;
+                            background:#f7faf8;border-radius:10px;margin-top:9px;}
+      [class*="st-key-original_tm_"] a {
+        min-height:44px !important;border-radius:9px !important;
+        background:#23874b !important;color:#fff !important;
+        font-size:14px !important;font-weight:750 !important;
+        box-shadow:none !important;border:1px solid #23874b !important;
+      }
+      @media(max-width:640px) {
+        .original-cards-title {font-size:25px;}
+        .original-model-description {min-height:0;}
+      }
     </style>
-    <div class="original-kicker">AIモデルの改善 / 元のモデル</div>
-    <div class="original-title">元のAIモデル</div>
-    <div class="original-sub">アプリの診断で使用しているモデルです。内容を確認したいモデルを選んでください。</div>
-    <div class="original-section">モデルを選択</div>
+    <div class="original-cards-page"></div>
+    <div class="original-cards-kicker">AIモデルの改善 / 元のモデル</div>
+    <div class="original-cards-title">元のAIモデル</div>
+    <div class="original-cards-lead">改良したいモデルを選んで、Teachable Machineを開いてください。</div>
     """, unsafe_allow_html=True)
 
-    model_options = {
-        "whole": {"name": "株全体モデル", "desc": "株の生育状態を判定する", "icon": "🌱"},
-        "leaf": {"name": "葉モデル", "desc": "葉の色や状態を判定する", "icon": "🍃"},
-        "fruit": {"name": "実モデル", "desc": "実の成長段階を判定する", "icon": "🍅"},
-    }
-    if st.session_state.get("original_selected_model") not in model_options:
-        st.session_state.original_selected_model = "whole"
-
-    cols = st.columns(3, gap="small")
-    for col, (model_key, model_data) in zip(cols, model_options.items()):
+    cols = st.columns(3, gap="medium")
+    missing_links = 0
+    for col, (model_key, model_name, model_description) in zip(cols, original_models):
+        project_url = get_original_tm_project_url(model_key)
         with col:
-            if st.button(
-                f"{model_data['icon']}  {model_data['name']}\n{model_data['desc']}",
-                key=f"original_select_{model_key}",
-                use_container_width=True,
-                type="secondary",
-            ):
-                st.session_state.original_selected_model = model_key
-                st.rerun()
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="original-model-name">{escape(model_name)}</div>'
+                    f'<div class="original-model-description">{escape(model_description)}</div>',
+                    unsafe_allow_html=True,
+                )
+                if project_url:
+                    st.link_button(
+                        "モデルを改良する ↗", project_url,
+                        key=f"original_tm_{model_key}", use_container_width=True,
+                    )
+                else:
+                    missing_links += 1
+                    st.link_button(
+                        "Teachable Machineを開く ↗",
+                        "https://teachablemachine.withgoogle.com/train/image",
+                        key=f"original_tm_{model_key}", use_container_width=True,
+                    )
+                    st.caption("編集用リンク未登録・新規作成画面が開きます")
 
-    selected_key = st.session_state.original_selected_model
-    selected = model_options[selected_key]
-    st.markdown('<div class="original-section">選択したモデルの詳細</div>', unsafe_allow_html=True)
-    with st.container(border=True):
+    if missing_links:
         st.markdown(
-            f'<div class="original-detail-title">{selected["icon"]} {selected["name"]}</div>'
-            f'<div class="original-detail-sub">{selected["desc"]}</div>',
+            '<div class="original-cards-note">元のモデルをそのまま改良するには、'
+            '各モデルのTeachable Machine編集用プロジェクトが必要です。'
+            '編集用URLを設定すると、「モデルを改良する」から直接アクセスできます。</div>',
             unsafe_allow_html=True,
         )
-        labels_file = MODEL_DIR / selected_key / "labels.txt"
-        if labels_file.is_file():
-            try:
-                # モデルの実際の分類名を使用し、表示用の分類数を推測しない。
-                class_labels = load_tm_labels(selected_key, labels_file.stat().st_mtime)
-            except Exception:
-                LOGGER.exception("Failed to read original model labels: %s", labels_file)
-                class_labels = []
-        else:
-            class_labels = []
-        st.markdown("**学習済みの分類**")
-        if class_labels:
-            pills = "".join(f'<span class="original-class">{escape(str(label))}</span>' for label in class_labels)
-            st.markdown(f'<div class="original-classes">{pills}</div>', unsafe_allow_html=True)
-            st.caption(f"全 {len(class_labels)} 分類")
-        else:
-            st.info("分類データ（labels.txt）を確認できませんでした。モデルの配置を確認してください。")
-
-        st.divider()
-        st.markdown("**Teachable Machineで改良する**")
-        st.markdown('<div class="original-note">写真を追加して再学習するには、元の編集用プロジェクトが必要です。</div>', unsafe_allow_html=True)
-        # 編集用URLが確認できる場合だけ該当プロジェクトを開く。
-        # エクスポートしたモデルのURLと編集用プロジェクトのURLは異なる。
-        project_urls = {
-            "whole": os.environ.get("TM_PROJECT_WHOLE_URL", ""),
-            "leaf": os.environ.get("TM_PROJECT_LEAF_URL", ""),
-            "fruit": os.environ.get("TM_PROJECT_FRUIT_URL", ""),
-        }
-        project_url = project_urls[selected_key].strip()
-        if project_url.startswith("https://teachablemachine.withgoogle.com/"):
-            st.link_button("元のプロジェクトを開く ↗", project_url, use_container_width=True)
-        else:
-            st.link_button("Teachable Machineを開く ↗", "https://teachablemachine.withgoogle.com/train/image", use_container_width=True)
-            st.caption("※ 現在は新規作成画面が開きます。元のモデルを編集するリンクは未登録です。")
-
-    st.markdown('<div class="original-note">モデルを改良したら、「AIモデルの改善」に戻って「モデルを登録する」から登録できます。</div>', unsafe_allow_html=True)
+    st.caption("改良したモデルは「AIモデルの改善」画面から登録できます。")
 
 
 # =========================================================
