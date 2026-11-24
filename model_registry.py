@@ -1,41 +1,33 @@
-"""Private Teachable Machine URL registry for the tomato diagnosis app.
+"""Personal Teachable Machine model URL registry.
 
-Requires Supabase SQL setup in model_registry_setup.sql.  Only authenticated
-users can access their own rows (DB RLS).  Registration does not deploy a model
-or alter the standard inference pipeline.
+Requires the existing public.model_registrations table and RLS policies.
+Does not replace or execute registered models in the standard diagnosis.
 """
 from __future__ import annotations
 
 import re
+from html import escape
 from urllib.parse import urlsplit, urlunsplit
 
 import streamlit as st
 import history_cloud
 
-TABLE = 'model_registrations'
-MODEL_TYPES = ('株全体', '葉', '実')
-_MODEL_ID_RE = re.compile(r'^/models/([A-Za-z0-9_-]+)/?$')
+TABLE = "model_registrations"
+MODEL_TYPES = ("株全体", "葉", "実")
+_MODEL_ID_RE = re.compile(r"^/models/([A-Za-z0-9_-]+)/?$")
 
 
 def validate_model_url(value: str) -> str:
-    """Accept only exported Teachable Machine model links, no query/fragment."""
-    s = value.strip()
-    p = urlsplit(s)
-    if p.scheme != 'https' or p.hostname != 'teachablemachine.withgoogle.com':
-        raise ValueError('Teachable Machineで発行されたモデルURLを入力してください。')
-    if p.username or p.password or p.port or p.query or p.fragment:
-        raise ValueError('モデルURLに余分な情報が含まれています。')
-    match = _MODEL_ID_RE.fullmatch(p.path)
+    """Validate a public Teachable Machine model URL; never accept arbitrary hosts."""
+    parsed = urlsplit(str(value or "").strip())
+    if parsed.scheme != "https" or parsed.hostname != "teachablemachine.withgoogle.com":
+        raise ValueError("Teachable MachineのモデルURLを入力してください。")
+    if parsed.username or parsed.password or parsed.port or parsed.query or parsed.fragment:
+        raise ValueError("モデルURLに余分な情報が含まれています。")
+    match = _MODEL_ID_RE.fullmatch(parsed.path)
     if not match:
-        raise ValueError('「https://teachablemachine.withgoogle.com/models/…/」の形式で入力してください。')
-    return urlunsplit(('https', 'teachablemachine.withgoogle.com', f'/models/{match.group(1)}/', '', ''))
-
-
-def _client_and_user():
-    try:
-        return history_cloud.client(), history_cloud.user()
-    except Exception:
-        return None, None
+        raise ValueError("モデルURLの形式を確認してください。例：https://teachablemachine.withgoogle.com/models/xxxx/")
+    return urlunsplit(("https", "teachablemachine.withgoogle.com", f"/models/{match.group(1)}/", "", ""))
 
 
 def _set_page(page: str):
@@ -45,130 +37,168 @@ def _set_page(page: str):
 
 
 def _styles():
-    st.markdown('''
+    st.markdown("""
     <style>
-      div[data-testid="stMainBlockContainer"]:has(.registry-title) {
-        padding-top: .35rem !important; padding-bottom: 1rem !important;
+      /* Model registration page only: blend with existing pale mint theme. */
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title) {
         max-width: 950px !important;
+        padding-top: .1rem !important;
+        padding-bottom: 1.1rem !important;
       }
-      div[data-testid="stMainBlockContainer"]:has(.registry-title) > div > div[data-testid="stVerticalBlock"] {
-        gap: .65rem !important;
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        > div > div[data-testid="stVerticalBlock"] {gap: .6rem !important;}
+      .model-reg-title {font-size: clamp(26px,3vw,32px);font-weight:900;
+        line-height:1.35;color:#173b2b;margin:0 0 5px;}
+      .model-reg-subtitle {font-size:14px;color:#66796e;line-height:1.65;margin:0 0 14px;}
+      .model-reg-section {font-size:19px;font-weight:850;color:#173b2b;margin:9px 0 6px;}
+      .model-reg-name {font-size:16px;font-weight:800;color:#173b2b;overflow-wrap:anywhere;}
+      .model-reg-type {font-size:12px;color:#52705c;background:#edf5ee;
+        border:1px solid #d6e9da;border-radius:6px;padding:3px 9px;}
+      .model-reg-row {display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:4px;}
+      .model-reg-footnote {color:#738279;font-size:12px;line-height:1.6;margin-top:4px;}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        div[data-testid="stVerticalBlockBorderWrapper"] {border-radius:12px!important;
+        border-color:#dfe7e1!important;box-shadow:none!important;}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [data-testid="stTextInput"] input,
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [data-testid="stSelectbox"] > div {border-radius:9px!important;}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        .stButton button,
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        .stLinkButton a,
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [data-testid="stFormSubmitButton"] button {
+          border-radius:9px!important;min-height:42px!important;font-size:14px!important;
+          font-weight:750!important;box-shadow:none!important;
       }
-      .registry-eyebrow {font-size:12px;color:#6b7d71;font-weight:700;margin:2px 0 7px;}
-      .registry-title {font-size:clamp(25px,3vw,32px);font-weight:850;line-height:1.3;color:#173b2b;margin:0 0 6px;}
-      .registry-lead {font-size:14px;color:#60736a;line-height:1.7;margin:0 0 16px;}
-      .registry-section {font-size:19px;font-weight:850;color:#173b2b;margin:5px 0 4px;}
-      .registry-help {font-size:13px;color:#687a6e;line-height:1.7;margin:2px 0 12px;}
-      .registry-row {display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;}
-      .registry-model-name {font-size:16px;font-weight:800;color:#174530;overflow-wrap:anywhere;}
-      .registry-meta {color:#718177;font-size:12px;}
-      .registry-info {background:#f5f9f6;border:1px solid #e0e9e2;border-radius:10px;
-        padding:11px 14px;color:#617469;font-size:13px;line-height:1.65;margin:5px 0 12px;}
-      div[data-testid="stMainBlockContainer"]:has(.registry-title) [data-testid="stVerticalBlockBorderWrapper"] {
-        border-radius:13px!important;box-shadow:none!important;
+      /* Green primary submit regardless of inherited global red button rules. */
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [data-testid="stFormSubmitButton"] button {
+          background:#23864c!important;background-image:none!important;color:#fff!important;
+          border:1px solid #23864c!important;
       }
-      div[data-testid="stMainBlockContainer"]:has(.registry-title) .stButton button,
-      div[data-testid="stMainBlockContainer"]:has(.registry-title) .stLinkButton a {
-        border-radius:9px!important;min-height:42px!important;font-size:14px!important;box-shadow:none!important;
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [data-testid="stFormSubmitButton"] button:hover {
+          background:#1c7440!important;border-color:#1c7440!important;
       }
-      .st-key-registry_submit button {background:#23854b!important;color:white!important;border:0!important;}
-      .st-key-registry_back button {background:transparent!important;color:#62756a!important;border:1px solid #d6e2da!important;}
-      @media(max-width:650px){.registry-lead{font-size:13px}.registry-title{font-size:25px}}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        .stLinkButton a {background:#fff!important;color:#216b42!important;
+          border:1px solid #b6d3bf!important;}
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [class*="st-key-reg_delete_"] button,
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        .st-key-registry_back button {
+          background:transparent!important;background-image:none!important;
+          border:1px solid #d8e2db!important;color:#69796e!important;
+          box-shadow:none!important;
+      }
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        [class*="st-key-reg_delete_"] button:hover,
+      div[data-testid="stMainBlockContainer"]:has(.model-reg-title)
+        .st-key-registry_back button:hover {
+          background:#f1f6f2!important;color:#335b40!important;
+      }
+      @media(max-width:650px){.model-reg-subtitle{font-size:13px}.model-reg-title{font-size:25px}}
     </style>
-    ''', unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 
 def show():
     _styles()
-    st.markdown('''<div class="registry-eyebrow">AIの開発・改善 / モデル登録</div>
-    <div class="registry-title">AIモデルを登録する</div>
-    <div class="registry-lead">Teachable Machineで作成したモデルのURLを登録できます。登録したモデルは、自分の一覧からいつでも開けます。</div>''', unsafe_allow_html=True)
+    st.markdown('''<div class="model-reg-title">AIモデルを登録する</div>
+    <div class="model-reg-subtitle">Teachable Machineで作成したモデルのURLを登録できます。</div>''',
+                unsafe_allow_html=True)
 
-    db, user = _client_and_user()
+    try:
+        db, user = history_cloud.client(), history_cloud.user()
+    except Exception:
+        db, user = None, None
+
     if db is None or user is None:
-        st.info('モデルの登録にはログインが必要です。登録したモデルは自分だけに表示されます。')
-        if st.button('ログイン・登録へ', key='registry_login', use_container_width=True):
-            _set_page('account')
-        if st.button('← 1ページ前に戻る', key='registry_back'):
-            _set_page('model_improve')
+        st.info("モデルの登録・確認にはログインが必要です。")
+        if st.button("ログイン・登録へ", key="registry_login", use_container_width=True):
+            _set_page("account")
+        if st.button("← 1ページ前に戻る", key="registry_back"):
+            _set_page("model_improve")
         return
 
-    st.markdown('<div class="registry-section">新しいモデルを登録</div>', unsafe_allow_html=True)
-    st.markdown('<div class="registry-help">入力するのは3項目だけです。Teachable Machineの「モデルをエクスポート」から共有用リンクをコピーしてください。</div>', unsafe_allow_html=True)
-    with st.form('registry_add_model', clear_on_submit=True, border=True):
-        model_name = st.text_input('モデル名', max_chars=80, placeholder='例：葉の黄化を判定するモデル')
-        model_type = st.selectbox('モデルの種類', MODEL_TYPES)
-        model_url = st.text_input('Teachable MachineのモデルURL', placeholder='https://teachablemachine.withgoogle.com/models/.../')
-        st.caption('モデルのURLは公開され得ます。個人情報を含むデータや、共有できないモデルは登録しないでください。')
-        submitted = st.form_submit_button('モデルを登録する', use_container_width=True, type='primary')
+    st.markdown('<div class="model-reg-section">新しいモデルを登録</div>', unsafe_allow_html=True)
+    with st.form("registry_add_model", clear_on_submit=True, border=False):
+        model_name = st.text_input("モデル名", max_chars=80, placeholder="例：葉の黄化を判定するモデル")
+        model_type = st.selectbox("モデルの種類", MODEL_TYPES)
+        model_url = st.text_input("Teachable MachineのモデルURL", placeholder="https://teachablemachine.withgoogle.com/models/.../")
+        submitted = st.form_submit_button("モデルを登録する", type="primary", use_container_width=True)
 
     if submitted:
         name = model_name.strip()
         if not name:
-            st.warning('モデル名を入力してください。')
+            st.warning("モデル名を入力してください。")
         else:
             try:
                 url = validate_model_url(model_url)
-                db.table(TABLE).insert({'user_id': str(user.id), 'name': name, 'model_type': model_type, 'model_url': url}).execute()
+                db.table(TABLE).insert({
+                    "user_id": str(user.id), "name": name,
+                    "model_type": model_type, "model_url": url
+                }).execute()
             except ValueError as exc:
                 st.warning(str(exc))
             except Exception:
-                st.error('保存できませんでした。データベース設定や通信状況を確認してください。')
+                st.error("登録できませんでした。通信状況を確認してください。")
             else:
-                st.success('モデルを登録しました。下の一覧から確認できます。')
+                st.success("モデルを登録しました。")
 
-    st.markdown('<div class="registry-section">登録したモデル</div>', unsafe_allow_html=True)
+    st.divider()
+    st.markdown('<div class="model-reg-section">登録したモデル</div>', unsafe_allow_html=True)
     try:
-        result = db.table(TABLE).select('id,name,model_type,model_url,created_at').eq('user_id', str(user.id)).order('created_at', desc=True).execute()
-        rows = result.data or []
+        rows = (db.table(TABLE)
+                .select("id,name,model_type,model_url,created_at")
+                .eq("user_id", str(user.id))
+                .order("created_at", desc=True).execute().data or [])
     except Exception:
-        st.warning('登録モデルの一覧を読み込めませんでした。Supabaseに「model_registrations」テーブルがあるか確認してください。')
+        st.error("登録済みモデルを読み込めませんでした。接続状態を確認してください。")
         rows = None
 
     if rows == []:
-        st.caption('登録したモデルはまだありません。上のフォームから追加できます。')
+        st.caption("登録したモデルはまだありません。")
     elif rows is not None:
         for row in rows:
+            row_id = str(row["id"])
             with st.container(border=True):
                 st.markdown(
-                    '<div class="registry-row"><span class="registry-model-name">' + _escape(row.get('name', '')) +
-                    '</span><span class="registry-meta">' + _escape(row.get('model_type', '')) + '</span></div>',
-                    unsafe_allow_html=True,
-                )
-                url = row.get('model_url', '')
-                try:
-                    url = validate_model_url(url)
-                except (ValueError, TypeError):
-                    st.caption('モデルURLが無効です。')
-                    continue
-                first, second = st.columns([3, 1], gap='small')
-                with first:
-                    st.link_button('モデルを開く ↗', url, use_container_width=True)
-                with second:
-                    if st.button('削除', key=f'registry_delete_request_{row["id"]}', use_container_width=True, type='secondary'):
-                        st.session_state.registry_delete_id = row['id']
-                if st.session_state.get('registry_delete_id') == row['id']:
-                    st.warning('このモデルの登録を削除しますか？（Teachable Machine上のモデルは削除されません）')
-                    yes, no = st.columns(2)
-                    with yes:
-                        if st.button('削除する', key=f'registry_confirm_{row["id"]}', use_container_width=True):
+                    '<div class="model-reg-row">'
+                    f'<span class="model-reg-name">{escape(str(row.get("name", "")))}</span>'
+                    f'<span class="model-reg-type">{escape(str(row.get("model_type", "")))}</span>'
+                    '</div>', unsafe_allow_html=True)
+                open_col, delete_col = st.columns([4, 1], gap="small")
+                with open_col:
+                    try:
+                        safe_url = validate_model_url(row.get("model_url", ""))
+                    except (ValueError, TypeError):
+                        st.caption("モデルURLを確認できませんでした。")
+                    else:
+                        st.link_button("モデルを開く", safe_url, use_container_width=True)
+                with delete_col:
+                    if st.button("削除", key=f"reg_delete_{row_id}", use_container_width=True):
+                        st.session_state.registry_delete_id = row_id
+                if st.session_state.get("registry_delete_id") == row_id:
+                    st.caption("このモデルの登録を削除しますか？")
+                    confirm_col, cancel_col = st.columns(2, gap="small")
+                    with confirm_col:
+                        if st.button("削除する", key=f"registry_confirm_{row_id}", use_container_width=True):
                             try:
-                                db.table(TABLE).delete().eq('id', row['id']).eq('user_id', str(user.id)).execute()
+                                (db.table(TABLE).delete().eq("id", row_id)
+                                 .eq("user_id", str(user.id)).execute())
                             except Exception:
-                                st.error('削除に失敗しました。')
+                                st.error("削除できませんでした。")
                             else:
-                                st.session_state.pop('registry_delete_id', None)
+                                st.session_state.pop("registry_delete_id", None)
                                 st.rerun()
-                    with no:
-                        if st.button('やめる', key=f'registry_cancel_{row["id"]}', use_container_width=True):
-                            st.session_state.pop('registry_delete_id', None)
+                    with cancel_col:
+                        if st.button("キャンセル", key=f"registry_cancel_{row_id}", use_container_width=True):
+                            st.session_state.pop("registry_delete_id", None)
                             st.rerun()
 
-    st.markdown('<div class="registry-info">登録したモデルは、現在の標準AI診断を自動では置き換えません。登録モデルによる診断と比較機能は今後実装します。</div>', unsafe_allow_html=True)
-    if st.button('← 1ページ前に戻る', key='registry_back'):
-        _set_page('model_improve')
-
-
-def _escape(text):
-    from html import escape
-    return escape(str(text), quote=True)
+    st.divider()
+    if st.button("← 1ページ前に戻る", key="registry_back"):
+        _set_page("model_improve")
