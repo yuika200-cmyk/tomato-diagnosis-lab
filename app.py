@@ -3487,119 +3487,68 @@ elif st.session_state.page == "model_improve":
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
+    # デザインはホームと統一。装飾を増やさず、操作を3つに絞る。
     st.markdown("""
     <style>
-      /* モデル改善ページ限定：Streamlit既定の上部余白を減らす */
-      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) {
-          padding-top: 0.75rem !important;
-      }
-      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) [data-testid="stVerticalBlock"] {
-          row-gap: 0.75rem;
-      }
-      div[data-testid="stMainBlockContainer"]:has(.model-improve-title) [data-testid="stDivider"] {
-          margin: 0.35rem 0 0.65rem !important;
-      }
-      .st-key-global_home_navigation button {
-          min-height:29px !important;height:29px !important;
-          padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
-          background:transparent !important;color:#52645a !important;
-          border:1px solid #d7e2da !important;border-radius:8px !important;
-          box-shadow:none !important;white-space:nowrap !important;
-      }
-      .model-improve-title {font-size:clamp(26px,3vw,34px);font-weight:900;color:#153b2d;margin:0 0 8px;line-height:1.3;}
-      .model-improve-desc {font-size:15px;color:#60736a;line-height:1.75;margin-bottom:24px;}
-      .model-improve-card-title {font-size:19px;font-weight:850;color:#183e2c;margin:5px 0 10px;line-height:1.4;}
-      .model-improve-card-desc {font-size:14px;color:#63766b;line-height:1.7;min-height:65px;margin-bottom:10px;}
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.model-improve-card-title) {
-          background:#fff;border:1px solid #dfebe2;border-radius:17px;
-          box-shadow:0 4px 15px rgba(25,100,50,.04);
-      }
-      .st-key-improve_gallery button,.st-key-improve_register button,.st-key-improve_select button {
-          background:#208c49 !important;color:#fff !important;border:1px solid #208c49 !important;
-          min-height:45px !important;font-size:14px !important;font-weight:750 !important;
-          border-radius:10px !important;
-      }
-      .st-key-improve_gallery button:hover,.st-key-improve_register button:hover,.st-key-improve_select button:hover {
-          background:#176e38 !important;border-color:#176e38 !important;
-      }
-      .model-improve-note {background:#f5f8f6;border:1px solid #e3eae5;border-radius:12px;
-          padding:14px 17px;color:#627269;font-size:13px;line-height:1.7;margin-top:20px;}
-      @media(max-width:760px){.model-improve-card-desc{min-height:0}}
+    .hub-kicker {font-size:12px;color:#638170;font-weight:700;margin:12px 0 8px;}
+    .hub-title {font-size:clamp(25px,3vw,33px);font-weight:850;color:#173b2b;line-height:1.25;margin:0 0 8px;}
+    .hub-sub {font-size:14px;color:#62766b;line-height:1.75;margin-bottom:24px;}
+    .hub-card-title {font-size:19px;font-weight:820;color:#1a4230;margin-bottom:6px;}
+    .hub-card-sub {font-size:13px;line-height:1.65;color:#65756c;margin-bottom:6px;}
+    .hub-step {font-size:11px;font-weight:800;letter-spacing:.06em;color:#398657;margin-bottom:9px;}
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.hub-card-title) {
+      border:1px solid #dce7df!important;border-radius:14px!important;background:#fff!important;
+      box-shadow:0 2px 10px rgba(17,70,40,.025)!important;padding:8px!important;
+    }
+    .st-key-hub_original button,.st-key-hub_register button,.st-key-hub_gallery button{
+      font-size:14px!important;border-radius:9px!important;min-height:44px!important;box-shadow:none!important;
+    }
+    .st-key-hub_original button {background:#246d45!important;color:white!important;}
+    .st-key-hub_register button {background:#246d45!important;color:white!important;}
+    .st-key-hub_gallery button {background:#fff!important;color:#246d45!important;border:1px solid #a7cbb3!important;}
+    .hub-caption {font-size:12px;color:#708077;margin-top:13px;line-height:1.65;}
+    @media(max-width:650px){.hub-title{font-size:26px}.hub-sub{margin-bottom:15px}}
     </style>
-    <div class="model-improve-title">AIモデルの改善</div>
-    <div class="model-improve-desc">元のAIモデルを改良したり、作成したモデルを登録・共有したりできます。</div>
-    """, unsafe_allow_html=True)
+    <div class="hub-kicker">AIの開発・改善</div>
+    <div class="hub-title">AIモデルを改善する</div>
+    <div class="hub-sub">元のモデルを参考に、Teachable Machineで学習・改善し、作成したモデルを登録できます。</div>
+    """,unsafe_allow_html=True)
 
-    # 現在のアプリで診断に使っている標準AIモデルを配布する。
-    # Teachable Machineの編集用URLとは異なり、こちらは推論用の書き出しファイル。
-    st.markdown("### 元のAIモデル（標準モデル）")
-    st.caption("このアプリで使っている株全体・葉・実の3モデルを確認できます。")
-    standard_files = [
-        MODEL_DIR / key / filename
-        for key in ("whole", "leaf", "fruit")
-        for filename in ("keras_model.h5", "labels.txt")
-    ]
-    missing_standard_files = [path for path in standard_files if not path.is_file()]
-    if missing_standard_files:
-        st.info("標準モデルのファイルが揃っていないため、ダウンロードは現在利用できません。")
-    else:
-        @st.cache_data(show_spinner=False, max_entries=2)
-        def standard_models_zip(file_versions: tuple) -> bytes:
-            buffer = io.BytesIO()
-            with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
-                for relative_path, _mtime, _size in file_versions:
-                    archive.write(MODEL_DIR / relative_path, arcname=f"models/{relative_path}")
-            return buffer.getvalue()
-
-        versions = tuple(
-            (str(path.relative_to(MODEL_DIR)), path.stat().st_mtime_ns, path.stat().st_size)
-            for path in standard_files
-        )
-        with st.expander("元のモデルのファイルを見る・ダウンロードする", expanded=False):
-            for model_key, model_name in (("whole", "株全体"), ("leaf", "葉"), ("fruit", "実")):
-                st.markdown(f"**{model_name}モデル**　`models/{model_key}/keras_model.h5`・`labels.txt`")
-            st.download_button(
-                "標準モデル3種類をまとめてダウンロード（ZIP）",
-                data=standard_models_zip(versions),
-                file_name="tomato_original_models.zip",
-                mime="application/zip",
-                key="original_models_download",
-                use_container_width=True,
-            )
-            st.caption("これらはアプリで判定するためのモデルファイルです。Teachable Machineで学習を再開するための編集リンクではありません。")
-
-    gallery_col, register_col, select_col = st.columns(3, gap="medium")
-    with gallery_col:
+    left, right = st.columns(2, gap="medium")
+    with left:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">AIモデルを改良する</div>'
-                        '<div class="model-improve-card-desc">元のAIモデルをもとに、自分なりに改良できます。</div>',
+            st.markdown('<div class="hub-step">STEP 01 · モデルを確認</div><div class="hub-card-title">元のモデルを見る</div>'
+                        '<div class="hub-card-sub">株全体・葉・実の3モデルを確認。ファイルや学習写真にアクセスできます。</div>',
                         unsafe_allow_html=True)
-            if st.button("元のモデルを見る", key="improve_gallery", use_container_width=True):
-                st.session_state.page = "training_gallery"
-                st.session_state.force_scroll_top = True
+            if st.button("元のモデルを見る",key="hub_original",use_container_width=True):
+                st.session_state.page="training_gallery"
+                st.session_state.force_scroll_top=True
                 st.rerun()
-    with register_col:
+    with right:
         with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">AIモデルを登録する</div>'
-                        '<div class="model-improve-card-desc">改良したAIモデルを登録して共有できます。</div>',
+            st.markdown('<div class="hub-step">STEP 02 · AIを学習・改善</div><div class="hub-card-title">Teachable Machineで作る</div>'
+                        '<div class="hub-card-sub">写真を追加して学習し、モデルを書き出します。外部サイトが開きます。</div>',
                         unsafe_allow_html=True)
-            if st.button("モデルを登録する", key="improve_register", use_container_width=True):
-                st.session_state.page = "model_registry"
-                st.session_state.force_scroll_top = True
-                st.rerun()
-    with select_col:
-        with st.container(border=True):
-            st.markdown('<div class="model-improve-card-title">モデルを選んで診断する</div>'
-                        '<div class="model-improve-card-desc">自分やほかの人が作ったモデルで診断できます。</div>',
-                        unsafe_allow_html=True)
-            if st.button("モデルを選ぶ", key="improve_select", use_container_width=True):
-                st.session_state.page = "model_choice"
-                st.session_state.force_scroll_top = True
-                st.rerun()
+            st.link_button("Teachable Machineを開く ↗","https://teachablemachine.withgoogle.com/train/image",
+                           use_container_width=True)
 
-    st.markdown('<div class="model-improve-note">ℹ️ 登録したモデルは標準モデルを自動で置き換えません。'
-                '利用するモデルを選んで診断する仕組みは、現在準備中です。</div>',
-                unsafe_allow_html=True)
+    st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<div class="hub-step">STEP 03 · アプリに登録</div><div class="hub-card-title">作ったモデルを登録・確認する</div>'
+                    '<div class="hub-card-sub">作成したモデルの登録画面や、登録済みモデルの一覧へ進みます。</div>',
+                    unsafe_allow_html=True)
+        register_col, browse_col = st.columns(2, gap="small")
+        with register_col:
+            if st.button("モデルを登録・一覧を見る",key="hub_register",use_container_width=True):
+                st.session_state.page="model_registry"
+                st.session_state.force_scroll_top=True
+                st.rerun()
+        with browse_col:
+            if st.button("登録モデルで診断（準備中）",key="hub_gallery",use_container_width=True,disabled=True):
+                pass
+
+    st.markdown('<div class="hub-caption">※ 登録モデルを使った診断への切り替えは準備中です。'
+                '登録した写真やモデルが自動的に標準診断を置き換えることはありません。</div>',unsafe_allow_html=True)
 
 elif st.session_state.page == "model_choice":
     if st.session_state.get("force_scroll_top", False):
@@ -3623,7 +3572,112 @@ elif st.session_state.page == "model_registry":
     model_registry.show()
 
 elif st.session_state.page == "training_gallery":
-    training_gallery.show()
+    if st.session_state.get("force_scroll_top", False):
+        force_scroll_top()
+        st.session_state.force_scroll_top = False
+
+    # AIモデルの改善トップ画面は変更せず、元のモデルを見る画面だけを改善。
+    st.markdown("""
+    <style>
+      .original-kicker {font-size:12px;color:#628174;font-weight:700;margin:12px 0 7px;}
+      .original-title {font-size:clamp(25px,3vw,33px);font-weight:850;color:#173b2b;margin:0 0 8px;line-height:1.3;}
+      .original-sub {font-size:14px;color:#62766b;line-height:1.7;margin-bottom:20px;}
+      .original-section {font-size:17px;font-weight:850;color:#193d2d;margin:10px 0 8px;}
+      .original-detail-title {font-size:22px;font-weight:850;color:#173b2b;margin:3px 0 7px;}
+      .original-detail-sub {font-size:14px;color:#65766b;margin-bottom:11px;line-height:1.65;}
+      .original-classes {display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px;}
+      .original-class {display:inline-block;padding:6px 11px;border:1px solid #dbe9df;border-radius:18px;
+                       background:#f6faf7;color:#21543a;font-size:13px;font-weight:650;}
+      .original-note {font-size:12px;line-height:1.7;color:#687c70;margin:8px 0;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.original-detail-title) {
+          background:#fff!important;border:1px solid #dce7df!important;
+          border-radius:14px!important;box-shadow:none!important;}
+      .st-key-original_select_whole button,.st-key-original_select_leaf button,.st-key-original_select_fruit button {
+          min-height:74px!important;border-radius:12px!important;font-size:15px!important;
+          box-shadow:none!important;background:#fff!important;color:#1f4a33!important;
+          border:1px solid #dce7df!important;text-align:left!important;
+          justify-content:flex-start!important;padding:12px 15px!important;white-space:normal!important;
+      }
+      .st-key-original_select_whole button:hover,.st-key-original_select_leaf button:hover,.st-key-original_select_fruit button:hover {
+          background:#f1f8f3!important;border-color:#90bea0!important;
+      }
+      .st-key-original_active button {background:#eff8f1!important;border:2px solid #27864d!important;}
+      .st-key-original_open_tm a {min-height:44px!important;border-radius:9px!important;
+          background:#246d45!important;color:white!important;border:1px solid #246d45!important;
+          box-shadow:none!important;font-weight:750!important;text-decoration:none!important;}
+      @media (max-width:650px){.original-title{font-size:25px}.original-sub{margin-bottom:12px}}
+    </style>
+    <div class="original-kicker">AIモデルの改善 / 元のモデル</div>
+    <div class="original-title">元のAIモデル</div>
+    <div class="original-sub">アプリの診断で使用しているモデルです。内容を確認したいモデルを選んでください。</div>
+    <div class="original-section">モデルを選択</div>
+    """, unsafe_allow_html=True)
+
+    model_options = {
+        "whole": {"name": "株全体モデル", "desc": "株の生育状態を判定する", "icon": "🌱"},
+        "leaf": {"name": "葉モデル", "desc": "葉の色や状態を判定する", "icon": "🍃"},
+        "fruit": {"name": "実モデル", "desc": "実の成長段階を判定する", "icon": "🍅"},
+    }
+    if st.session_state.get("original_selected_model") not in model_options:
+        st.session_state.original_selected_model = "whole"
+
+    cols = st.columns(3, gap="small")
+    for col, (model_key, model_data) in zip(cols, model_options.items()):
+        with col:
+            if st.button(
+                f"{model_data['icon']}  {model_data['name']}\n{model_data['desc']}",
+                key=f"original_select_{model_key}",
+                use_container_width=True,
+                type="secondary",
+            ):
+                st.session_state.original_selected_model = model_key
+                st.rerun()
+
+    selected_key = st.session_state.original_selected_model
+    selected = model_options[selected_key]
+    st.markdown('<div class="original-section">選択したモデルの詳細</div>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(
+            f'<div class="original-detail-title">{selected["icon"]} {selected["name"]}</div>'
+            f'<div class="original-detail-sub">{selected["desc"]}</div>',
+            unsafe_allow_html=True,
+        )
+        labels_file = MODEL_DIR / selected_key / "labels.txt"
+        if labels_file.is_file():
+            try:
+                # モデルの実際の分類名を使用し、表示用の分類数を推測しない。
+                class_labels = load_tm_labels(selected_key, labels_file.stat().st_mtime)
+            except Exception:
+                LOGGER.exception("Failed to read original model labels: %s", labels_file)
+                class_labels = []
+        else:
+            class_labels = []
+        st.markdown("**学習済みの分類**")
+        if class_labels:
+            pills = "".join(f'<span class="original-class">{escape(str(label))}</span>' for label in class_labels)
+            st.markdown(f'<div class="original-classes">{pills}</div>', unsafe_allow_html=True)
+            st.caption(f"全 {len(class_labels)} 分類")
+        else:
+            st.info("分類データ（labels.txt）を確認できませんでした。モデルの配置を確認してください。")
+
+        st.divider()
+        st.markdown("**Teachable Machineで改良する**")
+        st.markdown('<div class="original-note">写真を追加して再学習するには、元の編集用プロジェクトが必要です。</div>', unsafe_allow_html=True)
+        # 編集用URLが確認できる場合だけ該当プロジェクトを開く。
+        # エクスポートしたモデルのURLと編集用プロジェクトのURLは異なる。
+        project_urls = {
+            "whole": os.environ.get("TM_PROJECT_WHOLE_URL", ""),
+            "leaf": os.environ.get("TM_PROJECT_LEAF_URL", ""),
+            "fruit": os.environ.get("TM_PROJECT_FRUIT_URL", ""),
+        }
+        project_url = project_urls[selected_key].strip()
+        if project_url.startswith("https://teachablemachine.withgoogle.com/"):
+            st.link_button("元のプロジェクトを開く ↗", project_url, use_container_width=True)
+        else:
+            st.link_button("Teachable Machineを開く ↗", "https://teachablemachine.withgoogle.com/train/image", use_container_width=True)
+            st.caption("※ 現在は新規作成画面が開きます。元のモデルを編集するリンクは未登録です。")
+
+    st.markdown('<div class="original-note">モデルを改良したら、「AIモデルの改善」に戻って「モデルを登録する」から登録できます。</div>', unsafe_allow_html=True)
 
 
 # =========================================================
