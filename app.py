@@ -3653,104 +3653,94 @@ elif st.session_state.page == "training_gallery":
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
-    # 元のAIモデルの入口。分類詳細や画像はここでは表示しない。
-    # 元プロジェクトのURLが未設定の場合、編集可能だと誤認させない。
-    original_models = (
-        ("whole", "株全体モデル", "株の生育状態を判定するモデル"),
-        ("leaf", "葉モデル", "葉の色や状態を判定するモデル"),
-        ("fruit", "実モデル", "実の成長段階を判定するモデル"),
-    )
-
-    def get_original_tm_project_url(model_key: str) -> str:
-        config_key = f"TM_PROJECT_{model_key.upper()}_URL"
-        url = os.environ.get(config_key, "").strip()
-        if not url:
-            try:
-                url = str(st.secrets.get(config_key, "") or "").strip()
-            except (FileNotFoundError, KeyError):
-                pass
-        # Teachable MachineのURLのみを許可（任意のURLへ誘導しない）。
-        from urllib.parse import urlparse
-        parsed = urlparse(url)
-        return url if parsed.scheme == "https" and parsed.hostname == "teachablemachine.withgoogle.com" else ""
-
+    # 元のAIモデルを生徒が各自のコピーとして改良するための画面。
+    # `.tm` はTeachable Machineの学習画像・分類情報を含むプロジェクトファイル。
+    # 診断に使う models/ 以下の学習済みモデルには一切触れない。
     st.markdown("""
     <style>
-      div[data-testid="stMainBlockContainer"]:has(.original-cards-page) {
+      div[data-testid="stMainBlockContainer"]:has(.tm-gallery-page) {
+        max-width: 1050px !important;
         padding-top: .35rem !important;
         padding-bottom: 1.25rem !important;
-        max-width: 1050px !important;
       }
-      div[data-testid="stMainBlockContainer"]:has(.original-cards-page)
-      > div > div[data-testid="stVerticalBlock"] {gap: .75rem !important;}
-      .original-cards-page {height:0;}
-      .original-cards-kicker {font-size:12px;font-weight:700;color:#698074;margin:0 0 6px;}
-      .original-cards-title {font-size:clamp(25px,3vw,32px);font-weight:850;
-                             color:#173b2b;line-height:1.25;margin:0 0 8px;}
-      .original-cards-lead {font-size:14px;color:#617469;line-height:1.65;margin:0 0 15px;}
-      .original-model-name {font-size:19px;font-weight:850;color:#19412e;margin:0 0 7px;}
-      .original-model-description {font-size:13px;color:#64776d;line-height:1.65;min-height:46px;}
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.original-model-name) {
-        background:#fff !important;
-        border:1px solid #dce7df !important;
-        border-radius:13px !important;
-        box-shadow:none !important;
-        padding:9px 8px 7px !important;
+      .tm-gallery-page {height:0;}
+      .tm-gallery-title {font-size:clamp(25px,3vw,32px);font-weight:850;
+        color:#173b2b;line-height:1.3;margin:0 0 7px;}
+      .tm-gallery-intro {font-size:14px;color:#617469;line-height:1.65;margin:0 0 15px;}
+      .tm-gallery-card-title {font-size:19px;font-weight:850;color:#19412e;margin:0 0 7px;}
+      .tm-gallery-card-desc {font-size:13px;color:#64776d;line-height:1.65;min-height:43px;}
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.tm-gallery-card-title) {
+        background:#fff !important;border:1px solid #dce7df !important;
+        border-radius:13px !important;box-shadow:none !important;padding:9px 8px 7px !important;
       }
-      .original-cards-note {font-size:13px;line-height:1.7;color:#62736a;
-                            padding:13px 15px;border:1px solid #e4ebe6;
-                            background:#f7faf8;border-radius:10px;margin-top:9px;}
-      [class*="st-key-original_tm_"] a {
+      [class*="st-key-tm_project_download_"] button {
         min-height:44px !important;border-radius:9px !important;
-        background:#23874b !important;color:#fff !important;
+        background:#23874b !important;border:1px solid #23874b !important;
+        color:white !important;box-shadow:none !important;
         font-size:14px !important;font-weight:750 !important;
-        box-shadow:none !important;border:1px solid #23874b !important;
       }
+      [class*="st-key-tm_project_open_"] a {
+        min-height:44px !important;border-radius:9px !important;
+        background:#fff !important;border:1px solid #a7cbb3 !important;
+        color:#246d45 !important;box-shadow:none !important;
+        font-size:14px !important;font-weight:750 !important;
+      }
+      .tm-gallery-steps {font-size:14px;color:#405a4a;line-height:1.9;
+        background:#f8fbf9;border:1px solid #e1eae3;border-radius:11px;
+        padding:13px 17px;margin:6px 0 0;}
       @media(max-width:640px) {
-        .original-cards-title {font-size:25px;}
-        .original-model-description {min-height:0;}
+        .tm-gallery-card-desc {min-height:0;}
+        .tm-gallery-title {font-size:25px;}
       }
     </style>
-    <div class="original-cards-page"></div>
-    <div class="original-cards-kicker">AIモデルの改善 / 元のモデル</div>
-    <div class="original-cards-title">元のAIモデル</div>
-    <div class="original-cards-lead">改良したいモデルを選んで、Teachable Machineを開いてください。</div>
+    <div class="tm-gallery-page"></div>
+    <div class="tm-gallery-title">元のAIモデル</div>
+    <div class="tm-gallery-intro">改善したいモデルを選んでください。</div>
     """, unsafe_allow_html=True)
 
+    original_models = (
+        ("whole", "株全体モデル", "株全体の生育状態を判定", "whole.tm"),
+        ("leaf", "葉モデル", "葉の色や状態を判定", "leaf.tm"),
+        ("fruit", "実モデル", "実の成長段階を判定", "fruit.tm"),
+    )
+    project_dir = APP_DIR / "tm_projects"
     cols = st.columns(3, gap="medium")
-    missing_links = 0
-    for col, (model_key, model_name, model_description) in zip(cols, original_models):
-        project_url = get_original_tm_project_url(model_key)
+    for col, (model_key, model_title, desc, filename) in zip(cols, original_models):
+        project_path = project_dir / filename
         with col:
             with st.container(border=True):
                 st.markdown(
-                    f'<div class="original-model-name">{escape(model_name)}</div>'
-                    f'<div class="original-model-description">{escape(model_description)}</div>',
+                    f'<div class="tm-gallery-card-title">{escape(model_title)}</div>'
+                    f'<div class="tm-gallery-card-desc">{escape(desc)}</div>',
                     unsafe_allow_html=True,
                 )
-                if project_url:
-                    st.link_button(
-                        "モデルを改良する ↗", project_url,
-                        key=f"original_tm_{model_key}", use_container_width=True,
+                if project_path.is_file():
+                    st.download_button(
+                        "プロジェクトを保存",
+                        data=project_path.read_bytes(),
+                        file_name=filename,
+                        mime="application/octet-stream",
+                        key=f"tm_project_download_{model_key}",
+                        use_container_width=True,
                     )
                 else:
-                    missing_links += 1
-                    st.link_button(
-                        "Teachable Machineを開く ↗",
-                        "https://teachablemachine.withgoogle.com/train/image",
-                        key=f"original_tm_{model_key}", use_container_width=True,
-                    )
-                    st.caption("編集用リンク未登録・新規作成画面が開きます")
+                    st.warning("プロジェクトファイルが見つかりません。")
+                    st.caption(f"tm_projects/{filename} を配置してください")
+                st.link_button(
+                    "Teachable Machineを開く ↗",
+                    "https://teachablemachine.withgoogle.com/train/image",
+                    use_container_width=True,
+                )
 
-    if missing_links:
-        st.markdown(
-            '<div class="original-cards-note">元のモデルをそのまま改良するには、'
-            '各モデルのTeachable Machine編集用プロジェクトが必要です。'
-            '編集用URLを設定すると、「モデルを改良する」から直接アクセスできます。</div>',
-            unsafe_allow_html=True,
-        )
-    st.caption("改良したモデルは「AIモデルの改善」画面から登録できます。")
-
+    st.markdown(
+        '<div class="tm-gallery-steps"><b>モデルの改善方法</b><br>'
+        '① 「プロジェクトを保存」で .tm ファイルをダウンロード<br>'
+        '② 「Teachable Machineを開く」でサイトを開く<br>'
+        '③ 「既存のプロジェクトを開く」からダウンロードしたファイルを選ぶ<br>'
+        '④ 学習写真を追加して、モデルを再学習する</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption("元のプロジェクトは変更されません。生徒は各自のコピーを改善します。")
 
 # =========================================================
 # ⑧ 過去の写真を既存モデルで一括仮分類（必ず人が確認）
