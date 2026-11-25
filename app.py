@@ -3564,68 +3564,63 @@ elif st.session_state.page == "model_improve":
         force_scroll_top()
         st.session_state.force_scroll_top = False
 
-    # デザインはホームと統一。装飾を増やさず、操作を3つに絞る。
+    # モデル改善の入口：2カードのみ。診断・登録機能は変更しない。
     st.markdown("""
     <style>
-    .hub-kicker {font-size:12px;color:#638170;font-weight:700;margin:12px 0 8px;}
-    .hub-title {font-size:clamp(25px,3vw,33px);font-weight:850;color:#173b2b;line-height:1.25;margin:0 0 8px;}
-    .hub-sub {font-size:14px;color:#62766b;line-height:1.75;margin-bottom:24px;}
-    .hub-card-title {font-size:19px;font-weight:820;color:#1a4230;margin-bottom:6px;}
-    .hub-card-sub {font-size:13px;line-height:1.65;color:#65756c;margin-bottom:6px;}
-    .hub-step {font-size:11px;font-weight:800;letter-spacing:.06em;color:#398657;margin-bottom:9px;}
+    .hub-title {font-size:clamp(25px,3vw,33px);font-weight:850;color:#173b2b;line-height:1.3;margin:6px 0 8px;}
+    .hub-sub {font-size:14px;color:#62766b;line-height:1.7;margin:0 0 18px;}
+    .hub-card-title {font-size:19px;font-weight:820;color:#1a4230;margin:0 0 9px;}
+    .hub-card-sub {font-size:13px;line-height:1.65;color:#65756c;min-height:65px;margin-bottom:8px;}
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.hub-card-title) {
       border:1px solid #dce7df!important;border-radius:14px!important;background:#fff!important;
-      box-shadow:0 2px 10px rgba(17,70,40,.025)!important;padding:8px!important;
+      box-shadow:none!important;padding:12px!important;
     }
-    .st-key-hub_original button,.st-key-hub_register button,.st-key-hub_gallery button{
-      font-size:14px!important;border-radius:9px!important;min-height:44px!important;box-shadow:none!important;
+    .st-key-hub_original button,.st-key-hub_register button {
+      background:#236d45!important;color:#fff!important;border:1px solid #236d45!important;
+      font-size:14px!important;border-radius:9px!important;min-height:44px!important;
+      box-shadow:none!important;
     }
-    .st-key-hub_original button {background:#246d45!important;color:white!important;}
-    .st-key-hub_register button {background:#246d45!important;color:white!important;}
-    .st-key-hub_gallery button {background:#fff!important;color:#246d45!important;border:1px solid #a7cbb3!important;}
-    .hub-caption {font-size:12px;color:#708077;margin-top:13px;line-height:1.65;}
-    @media(max-width:650px){.hub-title{font-size:26px}.hub-sub{margin-bottom:15px}}
+    .st-key-hub_original button:hover,.st-key-hub_register button:hover {
+      background:#1a5736!important;color:#fff!important;
+    }
+    .hub-tm-note {color:#65756c;font-size:13px;text-align:center;margin-top:15px;}
+    .hub-tm-link {color:#236d45!important;text-decoration:underline;text-underline-offset:3px;}
+    @media(max-width:650px){.hub-title{font-size:26px}.hub-card-sub{min-height:0}}
     </style>
-    <div class="hub-kicker">AIの開発・改善</div>
     <div class="hub-title">AIモデルを改善する</div>
-    <div class="hub-sub">元のモデルを参考に、Teachable Machineで学習・改善し、作成したモデルを登録できます。</div>
-    """,unsafe_allow_html=True)
+    <div class="hub-sub">AIモデルの学習・改善と登録ができます。</div>
+    """, unsafe_allow_html=True)
 
     left, right = st.columns(2, gap="medium")
     with left:
         with st.container(border=True):
-            st.markdown('<div class="hub-step">STEP 01 · モデルを確認</div><div class="hub-card-title">元のモデルを見る</div>'
-                        '<div class="hub-card-sub">株全体・葉・実の3モデルを確認。ファイルや学習写真にアクセスできます。</div>',
-                        unsafe_allow_html=True)
-            if st.button("元のモデルを見る",key="hub_original",use_container_width=True):
-                st.session_state.page="training_gallery"
-                st.session_state.force_scroll_top=True
+            st.markdown(
+                '<div class="hub-card-title">元のモデルを改良する</div>'
+                '<div class="hub-card-sub">株全体・葉・実のモデルを確認し、学習画像を追加して改善します。</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("元のモデルを見る", key="hub_original", use_container_width=True):
+                st.session_state.page = "training_gallery"
+                st.session_state.force_scroll_top = True
                 st.rerun()
     with right:
         with st.container(border=True):
-            st.markdown('<div class="hub-step">STEP 02 · AIを学習・改善</div><div class="hub-card-title">Teachable Machineで作る</div>'
-                        '<div class="hub-card-sub">写真を追加して学習し、モデルを書き出します。外部サイトが開きます。</div>',
-                        unsafe_allow_html=True)
-            st.link_button("Teachable Machineを開く ↗","https://teachablemachine.withgoogle.com/train/image",
-                           use_container_width=True)
-
-    st.markdown('<div style="height:8px"></div>',unsafe_allow_html=True)
-    with st.container(border=True):
-        st.markdown('<div class="hub-step">STEP 03 · アプリに登録</div><div class="hub-card-title">作ったモデルを登録・確認する</div>'
-                    '<div class="hub-card-sub">作成したモデルの登録画面や、登録済みモデルの一覧へ進みます。</div>',
-                    unsafe_allow_html=True)
-        register_col, browse_col = st.columns(2, gap="small")
-        with register_col:
-            if st.button("モデルを登録・一覧を見る",key="hub_register",use_container_width=True):
-                st.session_state.page="model_registry"
-                st.session_state.force_scroll_top=True
+            st.markdown(
+                '<div class="hub-card-title">モデルを登録・管理する</div>'
+                '<div class="hub-card-sub">Teachable Machineで作成したモデルを登録し、一覧から確認します。</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("モデルを登録・一覧を見る", key="hub_register", use_container_width=True):
+                st.session_state.page = "model_registry"
+                st.session_state.force_scroll_top = True
                 st.rerun()
-        with browse_col:
-            if st.button("登録モデルで診断（準備中）",key="hub_gallery",use_container_width=True,disabled=True):
-                pass
 
-    st.markdown('<div class="hub-caption">※ 登録モデルを使った診断への切り替えは準備中です。'
-                '登録した写真やモデルが自動的に標準診断を置き換えることはありません。</div>',unsafe_allow_html=True)
+    st.markdown(
+        '<div class="hub-tm-note">新しくモデルを作成する場合：'
+        '<a class="hub-tm-link" href="https://teachablemachine.withgoogle.com/train/image" '
+        'target="_blank" rel="noopener noreferrer">Teachable Machineを開く ↗</a></div>',
+        unsafe_allow_html=True,
+    )
 
 elif st.session_state.page == "model_choice":
     if st.session_state.get("force_scroll_top", False):
@@ -3732,15 +3727,6 @@ elif st.session_state.page == "training_gallery":
                     use_container_width=True,
                 )
 
-    st.markdown(
-        '<div class="tm-gallery-steps"><b>モデルの改善方法</b><br>'
-        '① 「プロジェクトを保存」で .tm ファイルをダウンロード<br>'
-        '② 「Teachable Machineを開く」でサイトを開く<br>'
-        '③ 「既存のプロジェクトを開く」からダウンロードしたファイルを選ぶ<br>'
-        '④ 学習写真を追加して、モデルを再学習する</div>',
-        unsafe_allow_html=True,
-    )
-    st.caption("元のプロジェクトは変更されません。生徒は各自のコピーを改善します。")
 
 # =========================================================
 # ⑧ 過去の写真を既存モデルで一括仮分類（必ず人が確認）
