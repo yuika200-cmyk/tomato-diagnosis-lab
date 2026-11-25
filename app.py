@@ -1812,6 +1812,22 @@ div[data-testid="stMainBlockContainer"] .st-key-app_brand_home .stButton > butto
     padding:4px 1px !important;
     white-space:nowrap !important;
 }
+/* ロゴの文字そのものにも指定する。Streamlit の button 内 p のサイズを上書き */
+div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button,
+div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button p,
+div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button span {
+    font-size: 40px !important;
+    font-weight: 900 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+}
+@media (max-width: 640px) {
+    div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button,
+    div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button p,
+    div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button span {
+        font-size: 27px !important;
+    }
+}
 .st-key-app_brand_home button:hover {color:#208c49 !important; background:transparent !important;}
 .st-key-header_account_open button {
     min-height:34px !important;
