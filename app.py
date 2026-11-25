@@ -1727,6 +1727,40 @@ if st.session_state.page == "history_calendar":
     .history-v3-diagnosis {font-size:13px;line-height:1.75;color:#30483b;min-height:56px;}
     .history-v3-muted {font-size:13px;color:#86918a;min-height:56px;}
     .history-v3-note {font-size:12px;color:#697a70;margin-top:8px;line-height:1.55;}
+    /* 記録一覧：同じ行のカードを同じ高さにし、ボタンを下端に揃える */
+    div[data-testid="stHorizontalBlock"]:has(.history-v3-date) {
+      align-items:stretch !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.history-v3-date) > div[data-testid="stColumn"] {
+      display:flex !important;
+      flex-direction:column !important;
+    }
+    div[data-testid="stColumn"]:has(.history-v3-date)
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.history-v3-date) {
+      display:flex !important;
+      flex:1 1 auto !important;
+      width:100% !important;
+      min-height:510px !important;
+    }
+    div[data-testid="stColumn"]:has(.history-v3-date)
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.history-v3-date)
+    > div[data-testid="stVerticalBlock"] {
+      display:flex !important;
+      flex-direction:column !important;
+      flex:1 1 auto !important;
+      width:100% !important;
+    }
+    div[data-testid="stColumn"]:has(.history-v3-date)
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.history-v3-date)
+    [data-testid="stElementContainer"]:has([class*="st-key-detail_"]) {
+      margin-top:auto !important;
+    }
+    @media (max-width: 640px) {
+      div[data-testid="stColumn"]:has(.history-v3-date)
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.history-v3-date) {
+        min-height:0 !important;
+      }
+    }
     .history-v3-foot {text-align:center;color:#87938c;font-size:12px;margin:25px 0 8px;}
     .st-key-global_home_navigation button {min-height:29px !important; height:29px !important;
       padding:2px 7px !important;font-size:11px !important;font-weight:600 !important;
@@ -1861,7 +1895,7 @@ div[data-testid="stMainBlockContainer"] [class*="st-key-app_brand_home"] button 
 
 brand_col, account_col = st.columns([3, 1], gap="small", vertical_alignment="center")
 with brand_col:
-    if st.button("🌱 AI生育診断アプリ", key="app_brand_home", help="ホーム画面へ戻る"):
+    if st.button("AI生育診断アプリ", key="app_brand_home"):
         go_home()
 with account_col:
     if st.session_state.page != "account":
