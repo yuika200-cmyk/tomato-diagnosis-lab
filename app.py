@@ -1713,7 +1713,16 @@ if st.session_state.page == "history_calendar":
       object-position:left center !important;
       border-radius:9px;
     }
-    .history-v3-no-photo {height:128px;border-radius:10px;background:#f2f6f3;
+    /* 記録一覧の写真：縦横の向きにかかわらず同じ正方形の枠で表示 */
+    div[data-testid="stMainBlockContainer"]:has(.history-v3-title) [data-testid="stImage"] {
+      width:220px !important; max-width:100% !important;
+    }
+    div[data-testid="stMainBlockContainer"]:has(.history-v3-title) [data-testid="stImage"] img {
+      width:220px !important; height:220px !important; max-width:100% !important;
+      object-fit:contain !important; object-position:center !important;
+      background:#f4f8f5 !important; border-radius:10px !important;
+    }
+    .history-v3-no-photo {height:220px;width:220px;max-width:100%;border-radius:10px;background:#f2f6f3;
       display:flex;align-items:center;justify-content:center;color:#88948c;font-size:13px;}
     .history-v3-diagnosis {font-size:13px;line-height:1.75;color:#30483b;min-height:56px;}
     .history-v3-muted {font-size:13px;color:#86918a;min-height:56px;}
@@ -1785,13 +1794,22 @@ st.markdown("""
     border:0 !important;
     box-shadow:none !important;
     color:#165237 !important;
-    font-size:clamp(24px,3.5vw,36px) !important;
+    font-size:clamp(25px,3.2vw,38px) !important;
     font-weight:900 !important;
     letter-spacing:0 !important;
     padding:4px 1px !important;
     min-height:35px !important;
     text-align:left !important;
     justify-content:flex-start !important;
+    white-space:nowrap !important;
+}
+/* ホームの共通ボタン指定より詳細な指定にして、全ページで文字サイズを統一 */
+div[data-testid="stMainBlockContainer"] .st-key-app_brand_home .stButton > button {
+    font-size:clamp(25px,3.2vw,38px) !important;
+    font-weight:900 !important;
+    min-height:48px !important;
+    line-height:1.2 !important;
+    padding:4px 1px !important;
     white-space:nowrap !important;
 }
 .st-key-app_brand_home button:hover {color:#208c49 !important; background:transparent !important;}
@@ -3266,7 +3284,7 @@ elif st.session_state.page == "history_calendar":
                 with st.container(border=True):
                     if img_path:
                         try:
-                            st.image(img_path, width=170)
+                            st.image(img_path, width=220)
                         except Exception:
                             st.markdown('<div class="history-v3-no-photo">写真を表示できません</div>', unsafe_allow_html=True)
                     else:
