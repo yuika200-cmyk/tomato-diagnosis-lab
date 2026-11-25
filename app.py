@@ -1704,6 +1704,15 @@ if st.session_state.page == "history_calendar":
     .history-v3-title {font-size:29px;font-weight:850;color:#173e2c;margin:4px 0 7px;}
     .history-v3-lead {color:#697a70;font-size:14px;margin:0 0 24px;line-height:1.65;}
     .history-v3-date {font-size:18px;font-weight:800;color:#174c32;margin:7px 0 9px;}
+    /* 記録一覧の写真だけ、縦長写真もコンパクトに表示 */
+    div[data-testid="stMainBlockContainer"]:has(.history-v3-title) [data-testid="stImage"] img {
+      max-height:190px !important;
+      max-width:170px !important;
+      width:auto !important;
+      object-fit:contain !important;
+      object-position:left center !important;
+      border-radius:9px;
+    }
     .history-v3-no-photo {height:128px;border-radius:10px;background:#f2f6f3;
       display:flex;align-items:center;justify-content:center;color:#88948c;font-size:13px;}
     .history-v3-diagnosis {font-size:13px;line-height:1.75;color:#30483b;min-height:56px;}
@@ -1776,7 +1785,7 @@ st.markdown("""
     border:0 !important;
     box-shadow:none !important;
     color:#165237 !important;
-    font-size:clamp(18px,2.6vw,27px) !important;
+    font-size:clamp(24px,3.5vw,36px) !important;
     font-weight:900 !important;
     letter-spacing:0 !important;
     padding:4px 1px !important;
@@ -3257,7 +3266,7 @@ elif st.session_state.page == "history_calendar":
                 with st.container(border=True):
                     if img_path:
                         try:
-                            st.image(img_path, use_container_width=True)
+                            st.image(img_path, width=170)
                         except Exception:
                             st.markdown('<div class="history-v3-no-photo">写真を表示できません</div>', unsafe_allow_html=True)
                     else:
